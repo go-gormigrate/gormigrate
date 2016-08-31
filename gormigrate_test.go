@@ -73,13 +73,13 @@ func TestMigration(t *testing.T) {
 	assert.Nil(t, err)
 	assert.True(t, db.HasTable(&Person{}))
 	assert.True(t, db.HasTable(&Pet{}))
-	assert.Equal(t, 2, tableCount("migration"))
+	assert.Equal(t, 2, tableCount("migrations"))
 
 	err = gormigrate.RollbackLast()
 	assert.Nil(t, err)
 	assert.True(t, db.HasTable(&Person{}))
 	assert.False(t, db.HasTable(&Pet{}))
-	assert.Equal(t, 1, tableCount("migration"))
+	assert.Equal(t, 1, tableCount("migrations"))
 }
 
 func tableCount(tableName string) (count int) {

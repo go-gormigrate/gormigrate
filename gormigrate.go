@@ -107,7 +107,7 @@ type Gormigrate struct {
 var (
 	// DefaultOptions can be used if you don't want to think about options.
 	DefaultOptions = &Options{
-		TableName:      "migration",
+		TableName:      "migrations",
 		IDColumnName:   "id",
 		UseTransaction: false,
 	}
