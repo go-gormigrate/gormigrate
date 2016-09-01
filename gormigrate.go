@@ -169,12 +169,16 @@ func (g *Gormigrate) Migrate() error {
 		}
 
 		if err := migration.Migrate(tx); err != nil {
-			tx.Rollback()
+			if g.options.UseTransaction {
+				tx.Rollback()
+			}
 			return err
 		}
 		sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
 		if err := g.db.Exec(sql, migration.ID).Error; err != nil {
-			tx.Rollback()
+			if g.options.UseTransaction {
+				tx.Rollback()
+			}
 			return err
 		}
 	}
@@ -204,7 +208,9 @@ func (g *Gormigrate) RollbackMigration(m *Migration) error {
 	}
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
 	if err := g.db.Exec(sql, m.ID).Error; err != nil {
-		tx.Rollback()
+		if g.options.UseTransaction {
+			tx.Rollback()
+		}
 		return err
 	}
 
