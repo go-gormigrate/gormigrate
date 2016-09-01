@@ -1,4 +1,4 @@
-// Gormigrate is a migration helper for Gorm (http://jinzhu.me/gorm/).
+// Package gormigrate is a migration helper for Gorm (http://jinzhu.me/gorm/).
 // Gorm already have useful migrate functions
 // (http://jinzhu.me/gorm/database.html#migration), just misses
 // proper schema versioning and rollback cababilities.
@@ -74,7 +74,10 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+// MigrateFunc is the func signature for migrating.
 type MigrateFunc func(*gorm.DB) error
+
+// RollbackFunc is the func signature for rollbacking.
 type RollbackFunc func(*gorm.DB) error
 
 // Options define options for all migrations.
@@ -88,7 +91,7 @@ type Options struct {
 	UseTransaction bool
 }
 
-// Migrate represents a database migration (a modification to be made on the database).
+// Migration represents a database migration (a modification to be made on the database).
 type Migration struct {
 	// ID is the migration identifier. Usually a timestamp like "201601021504".
 	ID string
@@ -98,6 +101,7 @@ type Migration struct {
 	Rollback RollbackFunc
 }
 
+// Gormigrate represents a collection of all migrations of a database schema.
 type Gormigrate struct {
 	db         *gorm.DB
 	options    *Options
@@ -112,7 +116,11 @@ var (
 		UseTransaction: false,
 	}
 
+	// ErrRollbackImpossible is returned when trying to rollback a migration
+	// that has no rollback function.
 	ErrRollbackImpossible = errors.New("It's impossible to rollback this migration")
+
+	// ErrNoMigrationDefined is returned when no migration is defined.
 	ErrNoMigrationDefined = errors.New("No migration defined")
 )
 
