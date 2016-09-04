@@ -26,25 +26,7 @@ const (
 )
 
 var (
-	db         *gorm.DB
-	gormigrate *Gormigrate
-)
-
-func TestMain(m *testing.M) {
-	os.Remove(dbName)
-
-	var err error
-	db, err = gorm.Open("sqlite3", dbName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	if err = db.DB().Ping(); err != nil {
-		log.Fatal(err)
-	}
-
-	db.LogMode(true)
-
-	gormigrate = New(db, DefaultOptions, []*Migration{
+	migrations = []*Migration{
 		{
 			ID: "201608301400",
 			Migrate: func(tx *gorm.DB) error {
@@ -63,26 +45,69 @@ func TestMain(m *testing.M) {
 				return tx.DropTable("pets").Error
 			},
 		},
-	})
-
-	os.Exit(m.Run())
-}
+	}
+)
 
 func TestMigration(t *testing.T) {
-	err := gormigrate.Migrate()
+	os.Remove(dbName)
+
+	db, err := gorm.Open("sqlite3", dbName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	if err = db.DB().Ping(); err != nil {
+		log.Fatal(err)
+	}
+	db.LogMode(true)
+
+	m := New(db, DefaultOptions, migrations)
+
+	err = m.Migrate()
 	assert.Nil(t, err)
 	assert.True(t, db.HasTable(&Person{}))
 	assert.True(t, db.HasTable(&Pet{}))
-	assert.Equal(t, 2, tableCount("migrations"))
+	assert.Equal(t, 2, tableCount(db, "migrations"))
 
-	err = gormigrate.RollbackLast()
+	err = m.RollbackLast()
 	assert.Nil(t, err)
 	assert.True(t, db.HasTable(&Person{}))
 	assert.False(t, db.HasTable(&Pet{}))
-	assert.Equal(t, 1, tableCount("migrations"))
+	assert.Equal(t, 1, tableCount(db, "migrations"))
 }
 
-func tableCount(tableName string) (count int) {
+func TestInitSchema(t *testing.T) {
+	os.Remove(dbName)
+
+	db, err := gorm.Open("sqlite3", dbName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	if err = db.DB().Ping(); err != nil {
+		log.Fatal(err)
+	}
+	db.LogMode(true)
+
+	m := New(db, DefaultOptions, migrations)
+	m.InitSchema(func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&Person{}).Error; err != nil {
+			return err
+		}
+		if err := tx.AutoMigrate(&Pet{}).Error; err != nil {
+			return err
+		}
+		return nil
+	})
+
+	err = m.Migrate()
+	assert.Nil(t, err)
+	assert.True(t, db.HasTable(&Person{}))
+	assert.True(t, db.HasTable(&Pet{}))
+	assert.Equal(t, 2, tableCount(db, "migrations"))
+}
+
+func tableCount(db *gorm.DB, tableName string) (count int) {
 	db.Table(tableName).Count(&count)
 	return
 }
