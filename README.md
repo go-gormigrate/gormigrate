@@ -89,6 +89,54 @@ func main() {
 }
 ```
 
+## Having a separated function for initializing the schema
+
+If you have a lot of migrations, it can be a pain to run all them, as example,
+when you are deploying a new instance of the app, in a clean database.
+To prevent this, you can set a function that will run if no migration was run
+before (in a new clean database). Remember to create everything here, all tables,
+foreign keys and what more you need in your app.
+
+```go
+m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
+    // you migrations here
+})
+
+m.InitSchema(func(tx *gorm.DB) error {
+	err := tx.AutoMigrate(
+		&Person{},
+		&Pet{},
+		// all other tables of you app
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := tx.Model(Pet{}).AddForeignKey("person_id", "people (id)", "RESTRICT", "RESTRICT").Error; err != nil {
+		return err
+	}
+	// all other foreign keys...
+	return nil
+})
+```
+
+## Options
+
+This is the options struct, in case you don't want the defaults:
+
+```go
+type Options struct {
+	// Migrations table name. Default to "migrations".
+	TableName string
+	// The of the column that stores the id of migrations. Defaults to "id".
+	IDColumnName string
+	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
+	// Keep in mind that not all databases support DDL commands inside transactions.
+	// Defaults to false.
+	UseTransaction bool
+}
+```
+
 [gorm]: http://jinzhu.me/gorm/
 [gormmigrate]: http://jinzhu.me/gorm/database.html#migration
 [gormdatabases]: http://jinzhu.me/gorm/database.html#connecting-to-a-database
