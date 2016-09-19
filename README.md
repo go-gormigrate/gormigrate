@@ -5,6 +5,8 @@
 
 # Gormigrate
 
+[![Join the chat at https://gitter.im/gormigrate/Lobby](https://badges.gitter.im/gormigrate/Lobby.svg)](https://gitter.im/gormigrate/Lobby?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 Gormigrate is a migration helper for [Gorm][gorm].
 Gorm already have useful [migrate functions][gormmigrate], just misses
 proper schema versioning and rollback cababilities.
