@@ -114,38 +114,46 @@ func (g *Gormigrate) Migrate() error {
 	g.begin()
 
 	if g.initSchema != nil && g.isFirstRun() {
-		if err := g.initSchema(g.tx); err != nil {
+		if err := g.runInitSchema(); err != nil {
 			g.rollback()
 			return err
 		}
-		for _, migration := range g.migrations {
-			if err := g.insertMigration(migration.ID); err != nil {
-				g.rollback()
-				return err
-			}
-		}
-		if err := g.commit(); err != nil {
-			return err
-		}
-		return nil
+		return g.commit()
 	}
 
 	for _, migration := range g.migrations {
-		if g.migrationDidRun(migration) {
-			continue
-		}
-
-		if err := migration.Migrate(g.tx); err != nil {
-			g.rollback()
-			return err
-		}
-		if err := g.insertMigration(migration.ID); err != nil {
+		if err := g.runMigration(migration); err != nil {
 			g.rollback()
 			return err
 		}
 	}
-	if err := g.commit(); err != nil {
+
+	return g.commit()
+}
+
+func (g *Gormigrate) runInitSchema() error {
+	if err := g.initSchema(g.tx); err != nil {
 		return err
+	}
+
+	for _, migration := range g.migrations {
+		if err := g.insertMigration(migration.ID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (g *Gormigrate) runMigration(migration *Migration) error {
+	if !g.migrationDidRun(migration) {
+		if err := migration.Migrate(g.tx); err != nil {
+			return err
+		}
+
+		if err := g.insertMigration(migration.ID); err != nil {
+			return err
+		}
 	}
 	return nil
 }
