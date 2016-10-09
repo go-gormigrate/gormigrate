@@ -40,6 +40,7 @@ type Migration struct {
 // Gormigrate represents a collection of all migrations of a database schema.
 type Gormigrate struct {
 	db         *gorm.DB
+	tx         *gorm.DB
 	options    *Options
 	migrations []*Migration
 	initSchema InitSchemaFunc
@@ -101,44 +102,30 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 
 func (g *Gormigrate) insertMigration(id string) error {
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
-	return g.db.Exec(sql, id).Error
+	return g.tx.Exec(sql, id).Error
 }
 
 // Migrate executes all migrations that did not run yet.
 func (g *Gormigrate) Migrate() error {
-	if err := g.db.DB().Ping(); err != nil {
-		return err
-	}
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
 
-	var tx *gorm.DB
-	if g.options.UseTransaction {
-		tx = g.db.Begin()
-	} else {
-		tx = g.db
-	}
+	g.begin()
 
-	if g.isFirstRun() && g.initSchema != nil {
-		if err := g.initSchema(tx); err != nil {
-			if g.options.UseTransaction {
-				tx.Rollback()
-			}
+	if g.initSchema != nil && g.isFirstRun() {
+		if err := g.initSchema(g.tx); err != nil {
+			g.rollback()
 			return err
 		}
 		for _, migration := range g.migrations {
 			if err := g.insertMigration(migration.ID); err != nil {
-				if g.options.UseTransaction {
-					tx.Rollback()
-				}
+				g.rollback()
 				return err
 			}
 		}
-		if g.options.UseTransaction {
-			if err := tx.Commit().Error; err != nil {
-				return err
-			}
+		if err := g.commit(); err != nil {
+			return err
 		}
 		return nil
 	}
@@ -148,23 +135,17 @@ func (g *Gormigrate) Migrate() error {
 			continue
 		}
 
-		if err := migration.Migrate(tx); err != nil {
-			if g.options.UseTransaction {
-				tx.Rollback()
-			}
+		if err := migration.Migrate(g.tx); err != nil {
+			g.rollback()
 			return err
 		}
 		if err := g.insertMigration(migration.ID); err != nil {
-			if g.options.UseTransaction {
-				tx.Rollback()
-			}
+			g.rollback()
 			return err
 		}
 	}
-	if g.options.UseTransaction {
-		if err := tx.Commit().Error; err != nil {
-			return err
-		}
+	if err := g.commit(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -175,28 +156,20 @@ func (g *Gormigrate) RollbackMigration(m *Migration) error {
 		return ErrRollbackImpossible
 	}
 
-	var tx *gorm.DB
-	if g.options.UseTransaction {
-		tx = g.db.Begin()
-	} else {
-		tx = g.db
-	}
+	g.begin()
 
-	if err := m.Rollback(tx); err != nil {
+	if err := m.Rollback(g.tx); err != nil {
 		return err
 	}
+
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
 	if err := g.db.Exec(sql, m.ID).Error; err != nil {
-		if g.options.UseTransaction {
-			tx.Rollback()
-		}
+		g.rollback()
 		return err
 	}
 
-	if g.options.UseTransaction {
-		if err := tx.Commit().Error; err != nil {
-			return err
-		}
+	if err := g.commit(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -220,4 +193,27 @@ func (g *Gormigrate) RollbackLast() error {
 // foreign key necessary to your application.
 func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 	g.initSchema = initSchema
+}
+
+func (g *Gormigrate) begin() {
+	if g.options.UseTransaction {
+		g.tx = g.db.Begin()
+	} else {
+		g.tx = g.db
+	}
+}
+
+func (g *Gormigrate) commit() error {
+	if g.options.UseTransaction {
+		if err := g.tx.Commit().Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (g *Gormigrate) rollback() {
+	if g.options.UseTransaction {
+		g.tx.Rollback()
+	}
 }
