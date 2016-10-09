@@ -71,38 +71,12 @@ func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
 	}
 }
 
-func (g *Gormigrate) migrationDidRun(m *Migration) bool {
-	var count int
-	g.db.
-		Table(g.options.TableName).
-		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.ID).
-		Count(&count)
-	return count > 0
-}
-
-func (g *Gormigrate) isFirstRun() bool {
-	var count int
-	g.db.
-		Table(g.options.TableName).
-		Count(&count)
-	return count == 0
-}
-
-func (g *Gormigrate) createMigrationTableIfNotExists() error {
-	if g.db.HasTable(g.options.TableName) {
-		return nil
-	}
-
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(255) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName)
-	if err := g.db.Exec(sql).Error; err != nil {
-		return err
-	}
-	return nil
-}
-
-func (g *Gormigrate) insertMigration(id string) error {
-	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
-	return g.tx.Exec(sql, id).Error
+// InitSchema sets a function that is run if no migration is found.
+// The idea is preventing to run all migrations when a new clean database
+// is being migrating. In this function you should create all tables and
+// foreign key necessary to your application.
+func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
+	g.initSchema = initSchema
 }
 
 // Migrate executes all migrations that did not run yet.
@@ -126,6 +100,40 @@ func (g *Gormigrate) Migrate() error {
 			g.rollback()
 			return err
 		}
+	}
+
+	return g.commit()
+}
+
+// RollbackLast undo the last migration
+func (g *Gormigrate) RollbackLast() error {
+	if len(g.migrations) == 0 {
+		return ErrNoMigrationDefined
+	}
+
+	lastMigration := g.migrations[len(g.migrations)-1]
+	if err := g.RollbackMigration(lastMigration); err != nil {
+		return err
+	}
+	return nil
+}
+
+// RollbackMigration undo a migration.
+func (g *Gormigrate) RollbackMigration(m *Migration) error {
+	if m.Rollback == nil {
+		return ErrRollbackImpossible
+	}
+
+	g.begin()
+
+	if err := m.Rollback(g.tx); err != nil {
+		return err
+	}
+
+	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
+	if err := g.db.Exec(sql, m.ID).Error; err != nil {
+		g.rollback()
+		return err
 	}
 
 	return g.commit()
@@ -158,49 +166,38 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 	return nil
 }
 
-// RollbackMigration undo a migration.
-func (g *Gormigrate) RollbackMigration(m *Migration) error {
-	if m.Rollback == nil {
-		return ErrRollbackImpossible
+func (g *Gormigrate) createMigrationTableIfNotExists() error {
+	if g.db.HasTable(g.options.TableName) {
+		return nil
 	}
 
-	g.begin()
-
-	if err := m.Rollback(g.tx); err != nil {
-		return err
-	}
-
-	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
-	if err := g.db.Exec(sql, m.ID).Error; err != nil {
-		g.rollback()
-		return err
-	}
-
-	if err := g.commit(); err != nil {
+	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(255) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName)
+	if err := g.db.Exec(sql).Error; err != nil {
 		return err
 	}
 	return nil
 }
 
-// RollbackLast undo the last migration
-func (g *Gormigrate) RollbackLast() error {
-	if len(g.migrations) == 0 {
-		return ErrNoMigrationDefined
-	}
-
-	lastMigration := g.migrations[len(g.migrations)-1]
-	if err := g.RollbackMigration(lastMigration); err != nil {
-		return err
-	}
-	return nil
+func (g *Gormigrate) migrationDidRun(m *Migration) bool {
+	var count int
+	g.db.
+		Table(g.options.TableName).
+		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.ID).
+		Count(&count)
+	return count > 0
 }
 
-// InitSchema sets a function that is run if no migration is found.
-// The idea is preventing to run all migrations when a new clean database
-// is being migrating. In this function you should create all tables and
-// foreign key necessary to your application.
-func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
-	g.initSchema = initSchema
+func (g *Gormigrate) isFirstRun() bool {
+	var count int
+	g.db.
+		Table(g.options.TableName).
+		Count(&count)
+	return count == 0
+}
+
+func (g *Gormigrate) insertMigration(id string) error {
+	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
+	return g.tx.Exec(sql, id).Error
 }
 
 func (g *Gormigrate) begin() {
