@@ -107,6 +107,28 @@ func TestInitSchema(t *testing.T) {
 	assert.Equal(t, 2, tableCount(db, "migrations"))
 }
 
+func TestMissingID(t *testing.T) {
+	os.Remove(dbName)
+
+	db, err := gorm.Open("sqlite3", dbName)
+	assert.NoError(t, err)
+	if db != nil {
+		defer db.Close()
+	}
+	assert.NoError(t, db.DB().Ping())
+
+	migrationsMissingID := []*Migration{
+		{
+			Migrate: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+	}
+
+	m := New(db, DefaultOptions, migrationsMissingID)
+	assert.Equal(t, ErrMissingID, m.Migrate())
+}
+
 func tableCount(db *gorm.DB, tableName string) (count int) {
 	db.Table(tableName).Count(&count)
 	return

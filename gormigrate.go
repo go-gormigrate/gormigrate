@@ -60,6 +60,9 @@ var (
 
 	// ErrNoMigrationDefined is returned when no migration is defined.
 	ErrNoMigrationDefined = errors.New("No migration defined")
+
+	// ErrMissingID is returned when the ID od migration is equal to ""
+	ErrMissingID = errors.New("Missing ID in migration")
 )
 
 // New returns a new Gormigrate.
@@ -154,6 +157,10 @@ func (g *Gormigrate) runInitSchema() error {
 }
 
 func (g *Gormigrate) runMigration(migration *Migration) error {
+	if len(migration.ID) == 0 {
+		return ErrMissingID
+	}
+
 	if !g.migrationDidRun(migration) {
 		if err := migration.Migrate(g.tx); err != nil {
 			return err
