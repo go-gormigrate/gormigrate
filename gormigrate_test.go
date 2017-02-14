@@ -74,6 +74,12 @@ func TestMigration(t *testing.T) {
 	assert.True(t, db.HasTable(&Person{}))
 	assert.False(t, db.HasTable(&Pet{}))
 	assert.Equal(t, 1, tableCount(db, "migrations"))
+
+	err = m.RollbackLast()
+	assert.Nil(t, err)
+	assert.False(t, db.HasTable(&Person{}))
+	assert.False(t, db.HasTable(&Pet{}))
+	assert.Equal(t, 0, tableCount(db, "migrations"))
 }
 
 func TestInitSchema(t *testing.T) {
