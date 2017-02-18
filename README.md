@@ -42,6 +42,7 @@ import (
 type Person struct {
 	gorm.Model
 	Name string
+	Age int
 }
 
 type Pet struct {
@@ -62,15 +63,37 @@ func main() {
 	db.LogMode(true)
 
 	m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
+		// create persons table
 		{
 			ID: "201608301400",
 			Migrate: func(tx *gorm.DB) error {
+				// it's a good pratice to copy the struct inside the function,
+				// so side effects are prevented if the original struct changes during the time
+				type Person struct {
+					gorm.Model
+					Name string
+				}
 				return tx.AutoMigrate(&Person{}).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
 				return tx.DropTable("people").Error
 			},
 		},
+		// add age column to persons
+		{
+			ID: "201608301415",
+			Migrate: func(tx *gorm.DB) error {
+				// when table already exists, it just adds fields as columns
+				type Person struct {
+					Age int
+				}
+				return tx.AutoMigrate(&Person{}).Error
+			},
+			Rollback: func(tx *gorm.DB) error {
+				return tx.Table("people").DropColumn("age").Error
+			},
+		},
+		// add pets table
 		{
 			ID: "201608301430",
 			Migrate: func(tx *gorm.DB) error {
@@ -82,12 +105,10 @@ func main() {
 		},
 	})
 
-    err = m.Migrate()
-    if err == nil {
-		log.Printf("Migration did run successfully")
-    } else {
-		log.Printf("Could not migrate: %v", err)
-    }
+	if err = m.Migrate(); err != nil {
+		log.Fatalf("Could not migrate: %v", err)
+	}
+	log.Printf("Migration did run successfully")
 }
 ```
 
