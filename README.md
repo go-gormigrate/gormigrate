@@ -39,18 +39,6 @@ import (
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 
-type Person struct {
-	gorm.Model
-	Name string
-	Age int
-}
-
-type Pet struct {
-	gorm.Model
-	Name     string
-	PersonID int
-}
-
 func main() {
 	db, err := gorm.Open("sqlite3", "mydb.sqlite3")
 	if err != nil {
@@ -97,6 +85,11 @@ func main() {
 		{
 			ID: "201608301430",
 			Migrate: func(tx *gorm.DB) error {
+				type Pet struct {
+					gorm.Model
+					Name     string
+					PersonID int
+				}
 				return tx.AutoMigrate(&Pet{}).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
@@ -121,6 +114,18 @@ before (in a new clean database). Remember to create everything here, all tables
 foreign keys and what more you need in your app.
 
 ```go
+type Person struct {
+	gorm.Model
+	Name string
+	Age int
+}
+
+type Pet struct {
+	gorm.Model
+	Name     string
+	PersonID int
+}
+
 m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
     // you migrations here
 })
