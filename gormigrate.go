@@ -46,11 +46,17 @@ type Gormigrate struct {
 	initSchema InitSchemaFunc
 }
 
+// MigrationRecord in migrations table.
+type MigrationRecord struct {
+	ID        int
+	Migration string
+}
+
 var (
 	// DefaultOptions can be used if you don't want to think about options.
 	DefaultOptions = &Options{
 		TableName:      "migrations",
-		IDColumnName:   "id",
+		IDColumnName:   "migration",
 		UseTransaction: false,
 	}
 
@@ -114,10 +120,20 @@ func (g *Gormigrate) RollbackLast() error {
 		return ErrNoMigrationDefined
 	}
 
-	lastMigration := g.migrations[len(g.migrations)-1]
-	if err := g.RollbackMigration(lastMigration); err != nil {
-		return err
+	lastMigration, err := g.getLastMigration()
+
+	if err == nil {
+		for _, migration := range g.migrations {
+			if migration.ID == lastMigration.Migration {
+				if err = g.RollbackMigration(migration); err != nil {
+					return err
+				}
+
+				return nil
+			}
+		}
 	}
+
 	return nil
 }
 
@@ -178,7 +194,7 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 		return nil
 	}
 
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(255) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName)
+	sql := fmt.Sprintf("CREATE TABLE %s (id INTEGER PRIMARY KEY AUTOINCREMENT, %s VARCHAR(255))", g.options.TableName, g.options.IDColumnName)
 	if err := g.db.Exec(sql).Error; err != nil {
 		return err
 	}
@@ -205,6 +221,16 @@ func (g *Gormigrate) isFirstRun() bool {
 func (g *Gormigrate) insertMigration(id string) error {
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
 	return g.tx.Exec(sql, id).Error
+}
+
+func (g *Gormigrate) getLastMigration() (MigrationRecord, error) {
+	var migration MigrationRecord
+
+	err := g.db.
+		Table(g.options.TableName).
+		Last(&migration).Error
+
+	return migration, err
 }
 
 func (g *Gormigrate) begin() {
