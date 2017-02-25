@@ -49,31 +49,38 @@ var (
 )
 
 func TestMigration(t *testing.T) {
-	os.Remove(dbName)
+	_ = os.Remove(dbName)
 
 	db, err := gorm.Open("sqlite3", dbName)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer db.Close()
+
 	if err = db.DB().Ping(); err != nil {
 		log.Fatal(err)
 	}
-	db.LogMode(true)
+	// db.LogMode(true)
 
 	m := New(db, DefaultOptions, migrations)
 
 	err = m.Migrate()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, db.HasTable(&Person{}))
 	assert.True(t, db.HasTable(&Pet{}))
 	assert.Equal(t, 2, tableCount(db, "migrations"))
 
 	err = m.RollbackLast()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, db.HasTable(&Person{}))
 	assert.False(t, db.HasTable(&Pet{}))
 	assert.Equal(t, 1, tableCount(db, "migrations"))
+
+	err = m.RollbackLast()
+	assert.NoError(t, err)
+	assert.False(t, db.HasTable(&Person{}))
+	assert.False(t, db.HasTable(&Pet{}))
+	assert.Equal(t, 0, tableCount(db, "migrations"))
 }
 
 func TestInitSchema(t *testing.T) {
@@ -87,7 +94,7 @@ func TestInitSchema(t *testing.T) {
 	if err = db.DB().Ping(); err != nil {
 		log.Fatal(err)
 	}
-	db.LogMode(true)
+	// db.LogMode(true)
 
 	m := New(db, DefaultOptions, migrations)
 	m.InitSchema(func(tx *gorm.DB) error {
@@ -101,7 +108,7 @@ func TestInitSchema(t *testing.T) {
 	})
 
 	err = m.Migrate()
-	assert.Nil(t, err)
+	assert.NoError(t, err)
 	assert.True(t, db.HasTable(&Person{}))
 	assert.True(t, db.HasTable(&Pet{}))
 	assert.Equal(t, 2, tableCount(db, "migrations"))
