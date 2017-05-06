@@ -1,0 +1,10 @@
+# https://github.com/go-task/task
+
+lint:
+  cmds:
+    - golint .
+
+test:
+  deps: [lint]
+  cmds:
+    - go test -v .
