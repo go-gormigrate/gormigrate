@@ -80,6 +80,12 @@ var (
 
 // New returns a new Gormigrate.
 func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
+	if options.TableName == "" {
+		options.TableName = DefaultOptions.TableName
+	}
+	if options.IDColumnName == "" {
+		options.IDColumnName = DefaultOptions.IDColumnName
+	}
 	return &Gormigrate{
 		db:         db,
 		options:    options,
