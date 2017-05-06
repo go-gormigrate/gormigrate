@@ -118,10 +118,10 @@ func TestMissingID(t *testing.T) {
 	os.Remove(dbName)
 
 	db, err := gorm.Open("sqlite3", dbName)
-	assert.NoError(t, err)
-	if db != nil {
-		defer db.Close()
+	if err != nil {
+		log.Fatal(err)
 	}
+	defer db.Close()
 	assert.NoError(t, db.DB().Ping())
 
 	migrationsMissingID := []*Migration{
@@ -134,6 +134,36 @@ func TestMissingID(t *testing.T) {
 
 	m := New(db, DefaultOptions, migrationsMissingID)
 	assert.Equal(t, ErrMissingID, m.Migrate())
+}
+
+func TestDuplicatedID(t *testing.T) {
+	os.Remove(dbName)
+
+	db, err := gorm.Open("sqlite3", dbName)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	assert.NoError(t, db.DB().Ping())
+
+	migrationsDuplicatedID := []*Migration{
+		{
+			ID: "201705061500",
+			Migrate: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+		{
+			ID: "201705061500",
+			Migrate: func(tx *gorm.DB) error {
+				return nil
+			},
+		},
+	}
+
+	m := New(db, DefaultOptions, migrationsDuplicatedID)
+	_, isDuplicatedIDError := m.Migrate().(*DuplicatedIDError)
+	assert.True(t, isDuplicatedIDError)
 }
 
 func tableCount(db *gorm.DB, tableName string) (count int) {

@@ -46,6 +46,15 @@ type Gormigrate struct {
 	initSchema InitSchemaFunc
 }
 
+// DuplicatedIDError is returned when more than one migration have the same ID
+type DuplicatedIDError struct {
+	ID string
+}
+
+func (e *DuplicatedIDError) Error() string {
+	return fmt.Sprintf(`Duplicated migration ID: "%s"`, e.ID)
+}
+
 var (
 	// DefaultOptions can be used if you don't want to think about options.
 	DefaultOptions = &Options{
@@ -88,6 +97,10 @@ func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 
 // Migrate executes all migrations that did not run yet.
 func (g *Gormigrate) Migrate() error {
+	if err := g.checkDuplicatedID(); err != nil {
+		return err
+	}
+
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
@@ -110,6 +123,17 @@ func (g *Gormigrate) Migrate() error {
 	}
 
 	return g.commit()
+}
+
+func (g *Gormigrate) checkDuplicatedID() error {
+	lookup := make(map[string]struct{}, len(g.migrations))
+	for _, m := range g.migrations {
+		if _, ok := lookup[m.ID]; ok {
+			return &DuplicatedIDError{ID: m.ID}
+		}
+		lookup[m.ID] = struct{}{}
+	}
+	return nil
 }
 
 // RollbackLast undo the last migration
