@@ -22,6 +22,8 @@ type Options struct {
 	TableName string
 	// IDColumnName is the name of column where the migration id will be stored.
 	IDColumnName string
+	// IDColumnSize is the length of the migration id column
+	IDColumnSize int
 	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
 	// Keep in mind that not all databases support DDL commands inside transactions.
 	UseTransaction bool
@@ -60,6 +62,7 @@ var (
 	DefaultOptions = &Options{
 		TableName:      "migrations",
 		IDColumnName:   "id",
+		IDColumnSize:   255,
 		UseTransaction: false,
 	}
 
@@ -85,6 +88,9 @@ func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
 	}
 	if options.IDColumnName == "" {
 		options.IDColumnName = DefaultOptions.IDColumnName
+	}
+	if options.IDColumnSize == 0 {
+		options.IDColumnSize = DefaultOptions.IDColumnSize
 	}
 	return &Gormigrate{
 		db:         db,
@@ -226,7 +232,7 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 		return nil
 	}
 
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(255) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName)
+	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
 	if err := g.db.Exec(sql).Error; err != nil {
 		return err
 	}
