@@ -64,7 +64,7 @@ func main() {
 				return tx.AutoMigrate(&Person{}).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return tx.DropTable("people").Error
+				return tx.DropTable("person").Error
 			},
 		},
 		// add age column to persons
@@ -78,7 +78,7 @@ func main() {
 				return tx.AutoMigrate(&Person{}).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return tx.Table("people").DropColumn("age").Error
+				return tx.Table("person").DropColumn("age").Error
 			},
 		},
 		// add pets table
@@ -93,7 +93,7 @@ func main() {
 				return tx.AutoMigrate(&Pet{}).Error
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return tx.DropTable("pets").Error
+				return tx.DropTable("pet").Error
 			},
 		},
 	})
@@ -140,7 +140,7 @@ m.InitSchema(func(tx *gorm.DB) error {
 		return err
 	}
 
-	if err := tx.Model(Pet{}).AddForeignKey("person_id", "people (id)", "RESTRICT", "RESTRICT").Error; err != nil {
+	if err := tx.Model(Pet{}).AddForeignKey("person_id", "person (id)", "RESTRICT", "RESTRICT").Error; err != nil {
 		return err
 	}
 	// all other foreign keys...
