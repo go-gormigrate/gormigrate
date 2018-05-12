@@ -1,11 +1,8 @@
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/go-gormigrate/gormigrate/blob/master/LICENSE)
 [![GoDoc](https://godoc.org/gopkg.in/gormigrate.v1?status.svg)](https://godoc.org/gopkg.in/gormigrate.v1)
 [![Go Report Card](https://goreportcard.com/badge/gopkg.in/gormigrate.v1)](https://goreportcard.com/report/gopkg.in/gormigrate.v1)
 [![Build Status](https://travis-ci.org/go-gormigrate/gormigrate.svg?branch=master)](https://travis-ci.org/go-gormigrate/gormigrate)
 
 # Gormigrate
-
-[![Join the chat at https://gitter.im/go-gormigrate/gormigrate](https://badges.gitter.im/go-gormigrate/gormigrate.svg)](https://gitter.im/go-gormigrate/gormigrate?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 Gormigrate is a migration helper for [Gorm][gorm].
 Gorm already has useful [migrate functions][gormmigrate], just misses
@@ -13,7 +10,7 @@ proper schema versioning and rollback capabilities.
 
 ## Supported databases
 
-It supports the databases [Gorm supports][gormdatabases]:
+It supports any of the [databases Gorm supports][gormdatabases]:
 
 - PostgreSQL
 - MySQL
@@ -165,6 +162,6 @@ type Options struct {
 }
 ```
 
-[gorm]: http://jinzhu.me/gorm/
-[gormmigrate]: http://jinzhu.me/gorm/database.html#migration
-[gormdatabases]: http://jinzhu.me/gorm/database.html#connecting-to-a-database
+[gorm]: http://gorm.io/
+[gormmigrate]: http://doc.gorm.io/database.html#migration
+[gormdatabases]: http://doc.gorm.io/database.html#connecting-to-a-database
