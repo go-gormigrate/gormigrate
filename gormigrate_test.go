@@ -2,7 +2,6 @@ package gormigrate
 
 import (
 	"log"
-	"os"
 	"testing"
 
 	"github.com/jinzhu/gorm"
@@ -22,7 +21,7 @@ type Pet struct {
 }
 
 const (
-	dbName = "testdb.sqlite3"
+	dbName = ":memory:" // per-connection, in-memory database
 )
 
 var (
@@ -49,8 +48,6 @@ var (
 )
 
 func TestMigration(t *testing.T) {
-	_ = os.Remove(dbName)
-
 	db, err := gorm.Open("sqlite3", dbName)
 	if err != nil {
 		log.Fatal(err)
@@ -84,8 +81,6 @@ func TestMigration(t *testing.T) {
 }
 
 func TestInitSchema(t *testing.T) {
-	os.Remove(dbName)
-
 	db, err := gorm.Open("sqlite3", dbName)
 	if err != nil {
 		log.Fatal(err)
@@ -115,8 +110,6 @@ func TestInitSchema(t *testing.T) {
 }
 
 func TestMissingID(t *testing.T) {
-	os.Remove(dbName)
-
 	db, err := gorm.Open("sqlite3", dbName)
 	if err != nil {
 		log.Fatal(err)
@@ -137,8 +130,6 @@ func TestMissingID(t *testing.T) {
 }
 
 func TestDuplicatedID(t *testing.T) {
-	os.Remove(dbName)
-
 	db, err := gorm.Open("sqlite3", dbName)
 	if err != nil {
 		log.Fatal(err)
