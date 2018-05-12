@@ -1,8 +1,12 @@
 language: go
+
 go:
-  - 1.8
+  - '1.8'
+  - '1.9'
+  - '1.10'
+
 script:
-  - go get -v -u github.com/go-task/task/cmd/task
-  - task dl-deps
-  - task lint
-  - task test
+  - curl -s https://raw.githubusercontent.com/go-task/task/master/install-task.sh | sh
+  - bin/task dl-deps
+  - bin/task lint
+  - bin/task test
