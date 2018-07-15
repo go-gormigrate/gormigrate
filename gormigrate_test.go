@@ -1,13 +1,41 @@
 package gormigrate
 
 import (
-	"log"
+	"os"
 	"testing"
 
 	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/sqlite"
+	_ "github.com/joho/godotenv/autoload"
 	"gopkg.in/stretchr/testify.v1/assert"
 )
+
+var databases []database
+
+type database struct {
+	name    string
+	connEnv string
+}
+
+var migrations = []*Migration{
+	{
+		ID: "201608301400",
+		Migrate: func(tx *gorm.DB) error {
+			return tx.AutoMigrate(&Person{}).Error
+		},
+		Rollback: func(tx *gorm.DB) error {
+			return tx.DropTable("people").Error
+		},
+	},
+	{
+		ID: "201608301430",
+		Migrate: func(tx *gorm.DB) error {
+			return tx.AutoMigrate(&Pet{}).Error
+		},
+		Rollback: func(tx *gorm.DB) error {
+			return tx.DropTable("pets").Error
+		},
+	},
+}
 
 type Person struct {
 	gorm.Model
@@ -20,144 +48,103 @@ type Pet struct {
 	PersonID int
 }
 
-const (
-	dbName = ":memory:" // per-connection, in-memory database
-)
-
-var (
-	migrations = []*Migration{
-		{
-			ID: "201608301400",
-			Migrate: func(tx *gorm.DB) error {
-				return tx.AutoMigrate(&Person{}).Error
-			},
-			Rollback: func(tx *gorm.DB) error {
-				return tx.DropTable("people").Error
-			},
-		},
-		{
-			ID: "201608301430",
-			Migrate: func(tx *gorm.DB) error {
-				return tx.AutoMigrate(&Pet{}).Error
-			},
-			Rollback: func(tx *gorm.DB) error {
-				return tx.DropTable("pets").Error
-			},
-		},
-	}
-)
-
 func TestMigration(t *testing.T) {
-	db, err := gorm.Open("sqlite3", dbName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, migrations)
 
-	if err = db.DB().Ping(); err != nil {
-		log.Fatal(err)
-	}
-	// db.LogMode(true)
+		err := m.Migrate()
+		assert.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.True(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 2, tableCount(t, db, "migrations"))
 
-	m := New(db, DefaultOptions, migrations)
+		err = m.RollbackLast()
+		assert.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 1, tableCount(t, db, "migrations"))
 
-	err = m.Migrate()
-	assert.NoError(t, err)
-	assert.True(t, db.HasTable(&Person{}))
-	assert.True(t, db.HasTable(&Pet{}))
-	assert.Equal(t, 2, tableCount(db, "migrations"))
-
-	err = m.RollbackLast()
-	assert.NoError(t, err)
-	assert.True(t, db.HasTable(&Person{}))
-	assert.False(t, db.HasTable(&Pet{}))
-	assert.Equal(t, 1, tableCount(db, "migrations"))
-
-	err = m.RollbackLast()
-	assert.NoError(t, err)
-	assert.False(t, db.HasTable(&Person{}))
-	assert.False(t, db.HasTable(&Pet{}))
-	assert.Equal(t, 0, tableCount(db, "migrations"))
+		err = m.RollbackLast()
+		assert.NoError(t, err)
+		assert.False(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 0, tableCount(t, db, "migrations"))
+	})
 }
 
 func TestInitSchema(t *testing.T) {
-	db, err := gorm.Open("sqlite3", dbName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-	if err = db.DB().Ping(); err != nil {
-		log.Fatal(err)
-	}
-	// db.LogMode(true)
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, migrations)
+		m.InitSchema(func(tx *gorm.DB) error {
+			if err := tx.AutoMigrate(&Person{}).Error; err != nil {
+				return err
+			}
+			if err := tx.AutoMigrate(&Pet{}).Error; err != nil {
+				return err
+			}
+			return nil
+		})
 
-	m := New(db, DefaultOptions, migrations)
-	m.InitSchema(func(tx *gorm.DB) error {
-		if err := tx.AutoMigrate(&Person{}).Error; err != nil {
-			return err
-		}
-		if err := tx.AutoMigrate(&Pet{}).Error; err != nil {
-			return err
-		}
-		return nil
+		assert.NoError(t, m.Migrate())
+		assert.True(t, db.HasTable(&Person{}))
+		assert.True(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 2, tableCount(t, db, "migrations"))
 	})
-
-	err = m.Migrate()
-	assert.NoError(t, err)
-	assert.True(t, db.HasTable(&Person{}))
-	assert.True(t, db.HasTable(&Pet{}))
-	assert.Equal(t, 2, tableCount(db, "migrations"))
 }
 
 func TestMissingID(t *testing.T) {
-	db, err := gorm.Open("sqlite3", dbName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-	assert.NoError(t, db.DB().Ping())
-
-	migrationsMissingID := []*Migration{
-		{
-			Migrate: func(tx *gorm.DB) error {
-				return nil
+	forEachDatabase(t, func(db *gorm.DB) {
+		migrationsMissingID := []*Migration{
+			{
+				Migrate: func(tx *gorm.DB) error {
+					return nil
+				},
 			},
-		},
-	}
+		}
 
-	m := New(db, DefaultOptions, migrationsMissingID)
-	assert.Equal(t, ErrMissingID, m.Migrate())
+		m := New(db, DefaultOptions, migrationsMissingID)
+		assert.Equal(t, ErrMissingID, m.Migrate())
+	})
 }
 
 func TestDuplicatedID(t *testing.T) {
-	db, err := gorm.Open("sqlite3", dbName)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-	assert.NoError(t, db.DB().Ping())
-
-	migrationsDuplicatedID := []*Migration{
-		{
-			ID: "201705061500",
-			Migrate: func(tx *gorm.DB) error {
-				return nil
+	forEachDatabase(t, func(db *gorm.DB) {
+		migrationsDuplicatedID := []*Migration{
+			{
+				ID: "201705061500",
+				Migrate: func(tx *gorm.DB) error {
+					return nil
+				},
 			},
-		},
-		{
-			ID: "201705061500",
-			Migrate: func(tx *gorm.DB) error {
-				return nil
+			{
+				ID: "201705061500",
+				Migrate: func(tx *gorm.DB) error {
+					return nil
+				},
 			},
-		},
-	}
+		}
 
-	m := New(db, DefaultOptions, migrationsDuplicatedID)
-	_, isDuplicatedIDError := m.Migrate().(*DuplicatedIDError)
-	assert.True(t, isDuplicatedIDError)
+		m := New(db, DefaultOptions, migrationsDuplicatedID)
+		_, isDuplicatedIDError := m.Migrate().(*DuplicatedIDError)
+		assert.True(t, isDuplicatedIDError)
+	})
 }
 
-func tableCount(db *gorm.DB, tableName string) (count int) {
-	db.Table(tableName).Count(&count)
+func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int) {
+	assert.NoError(t, db.Table(tableName).Count(&count).Error)
 	return
+}
+
+func forEachDatabase(t *testing.T, fn func(database *gorm.DB)) {
+	if len(databases) == 0 {
+		panic("No database choosen for testing!")
+	}
+
+	for _, database := range databases {
+		db, err := gorm.Open(database.name, os.Getenv(database.connEnv))
+		assert.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
+
+		defer db.Close()
+		fn(db)
+	}
 }

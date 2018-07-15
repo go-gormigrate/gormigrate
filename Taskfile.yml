@@ -13,7 +13,12 @@ tasks:
     cmds:
       - golint .
 
-  test:
-    desc: Runs automated tests for this project
+  test-sqlite:
+    desc: Run tests for SQLite
     cmds:
-      - go test -v .
+      - task: test
+        vars: {DATABASE: sqlite}
+
+  test:
+    cmds:
+      - go test -v -tags {{.DATABASE}}
