@@ -29,6 +29,12 @@ tasks:
       - task: test
         vars: {DATABASE: postgresql}
 
+  test-mysql:
+    desc: Run tests for MySQL
+    cmds:
+      - task: test
+        vars: {DATABASE: mysql}
+
   test:
     cmds:
       - go test -v -tags {{.DATABASE}}
