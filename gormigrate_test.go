@@ -145,6 +145,10 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB)) {
 		assert.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
 
 		defer db.Close()
+
+		// ensure tables do not exists
+		assert.NoError(t, db.DropTableIfExists("migrations", "people", "pets").Error)
+
 		fn(db)
 	}
 }

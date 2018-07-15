@@ -8,6 +8,10 @@ tasks:
     cmds:
       - go get -u github.com/golang/lint/golint
 
+  go-get-all:
+    cmds:
+      - go get -v -t -tags 'sqlite postgresql' ./...
+
   lint:
     desc: Runs golint on this project
     cmds:
@@ -18,6 +22,12 @@ tasks:
     cmds:
       - task: test
         vars: {DATABASE: sqlite}
+
+  test-pg:
+    desc: Run tests for PostgreSQL
+    cmds:
+      - task: test
+        vars: {DATABASE: postgresql}
 
   test:
     cmds:
