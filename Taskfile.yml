@@ -10,7 +10,7 @@ tasks:
 
   go-get-all:
     cmds:
-      - go get -v -t -tags 'sqlite postgresql' ./...
+      - go get -t -tags 'sqlite postgresql mysql sqlserver' ./...
 
   lint:
     desc: Runs golint on this project
