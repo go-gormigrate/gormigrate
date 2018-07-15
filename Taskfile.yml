@@ -35,6 +35,12 @@ tasks:
       - task: test
         vars: {DATABASE: mysql}
 
+  test-sqlserver:
+    desc: Run tests for Microsoft SQL Server
+    cmds:
+      - task: test
+        vars: {DATABASE: sqlserver}
+
   test:
     cmds:
       - go test -v -tags {{.DATABASE}}
