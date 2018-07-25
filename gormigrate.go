@@ -192,7 +192,7 @@ func (g *Gormigrate) RollbackTo(migrationId string) error {
 			break
 		}
 		if g.migrationDidRun(migration) {
-			if err := g.rollbackMigration(migration, false); err != nil {
+			if err := g.rollbackMigration(migration); err != nil {
 				g.rollback()
 				return err
 			}
@@ -214,19 +214,17 @@ func (g *Gormigrate) getLastRunnedMigration() (*Migration, error) {
 
 // RollbackMigration undo a migration.
 func (g *Gormigrate) RollbackMigration(m *Migration) error {
-	return g.rollbackMigration(m, true)
+	g.begin()
+	if err := g.rollbackMigration(m); err != nil {
+		g.rollback()
+		return err
+	}
+	return g.commit()
 }
 
-// rollbackMigration rolls back the given transaction. If `withTransaction` is true, then the operation is wrapped in
-// transaction (if g.options.UseTransaction is also true).
-// Call rollbackMigration with `withTransaction` false if you want to wrap multiple operations in a single transaction.
-func (g *Gormigrate) rollbackMigration(m *Migration, withTransaction bool) error {
+func (g *Gormigrate) rollbackMigration(m *Migration) error {
 	if m.Rollback == nil {
 		return ErrRollbackImpossible
-	}
-
-	if withTransaction {
-		g.begin()
 	}
 
 	if err := m.Rollback(g.tx); err != nil {
@@ -235,14 +233,7 @@ func (g *Gormigrate) rollbackMigration(m *Migration, withTransaction bool) error
 
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
 	if err := g.db.Exec(sql, m.ID).Error; err != nil {
-		if withTransaction {
-			g.rollback()
-		}
 		return err
-	}
-
-	if withTransaction {
-		return g.commit()
 	}
 	return nil
 }
