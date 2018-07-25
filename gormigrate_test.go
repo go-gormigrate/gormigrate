@@ -37,12 +37,28 @@ var migrations = []*Migration{
 	},
 }
 
+var extendedMigrations = append(migrations, &Migration{
+	ID: "201807221927",
+	Migrate: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&Book{}).Error
+	},
+	Rollback: func(tx *gorm.DB) error {
+		return tx.DropTable("books").Error
+	},
+})
+
 type Person struct {
 	gorm.Model
 	Name string
 }
 
 type Pet struct {
+	gorm.Model
+	Name     string
+	PersonID int
+}
+
+type Book struct {
 	gorm.Model
 	Name     string
 	PersonID int
@@ -69,6 +85,41 @@ func TestMigration(t *testing.T) {
 		assert.False(t, db.HasTable(&Person{}))
 		assert.False(t, db.HasTable(&Pet{}))
 		assert.Equal(t, 0, tableCount(t, db, "migrations"))
+	})
+}
+
+func TestMigrateTo(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, extendedMigrations)
+
+		err := m.MigrateTo("201608301430")
+		assert.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.True(t, db.HasTable(&Pet{}))
+		assert.False(t, db.HasTable(&Book{}))
+		assert.Equal(t, 2, tableCount(t, db, "migrations"))
+	})
+}
+
+func TestRollbackTo(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, extendedMigrations)
+
+		// First, apply all migrations.
+		err := m.Migrate()
+		assert.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.True(t, db.HasTable(&Pet{}))
+		assert.True(t, db.HasTable(&Book{}))
+		assert.Equal(t, 3, tableCount(t, db, "migrations"))
+
+		// Rollback to the first migration: only the last 2 migrations are expected to be rolled back.
+		err = m.RollbackTo("201608301400")
+		assert.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.False(t, db.HasTable(&Book{}))
+		assert.Equal(t, 1, tableCount(t, db, "migrations"))
 	})
 }
 

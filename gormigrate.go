@@ -109,6 +109,15 @@ func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 
 // Migrate executes all migrations that did not run yet.
 func (g *Gormigrate) Migrate() error {
+	return g.migrate("")
+}
+
+// Migrate executes all migrations that did not run yet up to the migration that matches `migrationId`.
+func (g *Gormigrate) MigrateTo(migrationId string) error {
+	return g.migrate(migrationId)
+}
+
+func (g *Gormigrate) migrate(migrationId string) error {
 	if err := g.checkDuplicatedID(); err != nil {
 		return err
 	}
@@ -131,6 +140,9 @@ func (g *Gormigrate) Migrate() error {
 		if err := g.runMigration(migration); err != nil {
 			g.rollback()
 			return err
+		}
+		if migrationId != "" && migration.ID == migrationId {
+			break
 		}
 	}
 
@@ -165,6 +177,31 @@ func (g *Gormigrate) RollbackLast() error {
 	return nil
 }
 
+// RollbackTo undoes migrations up to the given migration that matches the `migrationId`.
+// Migration with the matching `migrationId` is not rolled back.
+func (g *Gormigrate) RollbackTo(migrationId string) error {
+	if len(g.migrations) == 0 {
+		return ErrNoMigrationDefined
+	}
+
+	g.begin()
+
+	for i := len(g.migrations) - 1; i >= 0; i-- {
+		migration := g.migrations[i]
+		if migration.ID == migrationId {
+			break
+		}
+		if g.migrationDidRun(migration) {
+			if err := g.rollbackMigration(migration); err != nil {
+				g.rollback()
+				return err
+			}
+		}
+	}
+
+	return g.commit()
+}
+
 func (g *Gormigrate) getLastRunnedMigration() (*Migration, error) {
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
@@ -177,11 +214,18 @@ func (g *Gormigrate) getLastRunnedMigration() (*Migration, error) {
 
 // RollbackMigration undo a migration.
 func (g *Gormigrate) RollbackMigration(m *Migration) error {
+	g.begin()
+	if err := g.rollbackMigration(m); err != nil {
+		g.rollback()
+		return err
+	}
+	return g.commit()
+}
+
+func (g *Gormigrate) rollbackMigration(m *Migration) error {
 	if m.Rollback == nil {
 		return ErrRollbackImpossible
 	}
-
-	g.begin()
 
 	if err := m.Rollback(g.tx); err != nil {
 		return err
@@ -189,11 +233,9 @@ func (g *Gormigrate) RollbackMigration(m *Migration) error {
 
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
 	if err := g.db.Exec(sql, m.ID).Error; err != nil {
-		g.rollback()
 		return err
 	}
-
-	return g.commit()
+	return nil
 }
 
 func (g *Gormigrate) runInitSchema() error {
