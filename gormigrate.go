@@ -118,6 +118,10 @@ func (g *Gormigrate) MigrateTo(migrationId string) error {
 }
 
 func (g *Gormigrate) migrate(migrationId string) error {
+	if len(g.migrations) == 0 {
+		return ErrNoMigrationDefined
+	}
+
 	if err := g.checkDuplicatedID(); err != nil {
 		return err
 	}

@@ -181,6 +181,22 @@ func TestDuplicatedID(t *testing.T) {
 	})
 }
 
+func TestEmptyMigrationList(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		t.Run("with empty list", func(t *testing.T) {
+			m := New(db, DefaultOptions, []*Migration{})
+			err := m.Migrate()
+			assert.Equal(t, ErrNoMigrationDefined, err)
+		})
+
+		t.Run("with nil list", func(t *testing.T) {
+			m := New(db, DefaultOptions, nil)
+			err := m.Migrate()
+			assert.Equal(t, ErrNoMigrationDefined, err)
+		})
+	})
+}
+
 func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int) {
 	assert.NoError(t, db.Table(tableName).Count(&count).Error)
 	return
