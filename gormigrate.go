@@ -54,7 +54,7 @@ type DuplicatedIDError struct {
 }
 
 func (e *DuplicatedIDError) Error() string {
-	return fmt.Sprintf(`Duplicated migration ID: "%s"`, e.ID)
+	return fmt.Sprintf(`gormigrate: Duplicated migration ID: "%s"`, e.ID)
 }
 
 var (
@@ -68,17 +68,17 @@ var (
 
 	// ErrRollbackImpossible is returned when trying to rollback a migration
 	// that has no rollback function.
-	ErrRollbackImpossible = errors.New("It's impossible to rollback this migration")
+	ErrRollbackImpossible = errors.New("gormigrate: It's impossible to rollback this migration")
 
 	// ErrNoMigrationDefined is returned when no migration is defined.
-	ErrNoMigrationDefined = errors.New("No migration defined")
+	ErrNoMigrationDefined = errors.New("gormigrate: No migration defined")
 
 	// ErrMissingID is returned when the ID od migration is equal to ""
-	ErrMissingID = errors.New("Missing ID in migration")
+	ErrMissingID = errors.New("gormigrate: Missing ID in migration")
 
 	// ErrNoRunnedMigration is returned when any runned migration was found while
 	// running RollbackLast
-	ErrNoRunnedMigration = errors.New("Could not find last runned migration")
+	ErrNoRunnedMigration = errors.New("gormigrate: Could not find last runned migration")
 )
 
 // New returns a new Gormigrate.
