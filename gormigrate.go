@@ -112,12 +112,12 @@ func (g *Gormigrate) Migrate() error {
 	return g.migrate("")
 }
 
-// Migrate executes all migrations that did not run yet up to the migration that matches `migrationId`.
-func (g *Gormigrate) MigrateTo(migrationId string) error {
-	return g.migrate(migrationId)
+// MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
+func (g *Gormigrate) MigrateTo(migrationID string) error {
+	return g.migrate(migrationID)
 }
 
-func (g *Gormigrate) migrate(migrationId string) error {
+func (g *Gormigrate) migrate(migrationID string) error {
 	if len(g.migrations) == 0 {
 		return ErrNoMigrationDefined
 	}
@@ -145,7 +145,7 @@ func (g *Gormigrate) migrate(migrationId string) error {
 			g.rollback()
 			return err
 		}
-		if migrationId != "" && migration.ID == migrationId {
+		if migrationID != "" && migration.ID == migrationID {
 			break
 		}
 	}
@@ -181,9 +181,9 @@ func (g *Gormigrate) RollbackLast() error {
 	return nil
 }
 
-// RollbackTo undoes migrations up to the given migration that matches the `migrationId`.
-// Migration with the matching `migrationId` is not rolled back.
-func (g *Gormigrate) RollbackTo(migrationId string) error {
+// RollbackTo undoes migrations up to the given migration that matches the `migrationID`.
+// Migration with the matching `migrationID` is not rolled back.
+func (g *Gormigrate) RollbackTo(migrationID string) error {
 	if len(g.migrations) == 0 {
 		return ErrNoMigrationDefined
 	}
@@ -192,7 +192,7 @@ func (g *Gormigrate) RollbackTo(migrationId string) error {
 
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
-		if migration.ID == migrationId {
+		if migration.ID == migrationID {
 			break
 		}
 		if g.migrationDidRun(migration) {
