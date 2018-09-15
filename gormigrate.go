@@ -22,8 +22,6 @@ type Options struct {
 	TableName string
 	// IDColumnName is the name of column where the migration id will be stored.
 	IDColumnName string
-	// IDColumnSize is the length of the migration id column
-	IDColumnSize int
 	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
 	// Keep in mind that not all databases support DDL commands inside transactions.
 	UseTransaction bool
@@ -32,7 +30,7 @@ type Options struct {
 // Migration represents a database migration (a modification to be made on the database).
 type Migration struct {
 	// ID is the migration identifier. Usually a timestamp like "201601021504".
-	ID string
+	ID uint64
 	// Migrate is a function that will br executed while running this migration.
 	Migrate MigrateFunc
 	// Rollback will be executed on rollback. Can be nil.
@@ -50,11 +48,11 @@ type Gormigrate struct {
 
 // DuplicatedIDError is returned when more than one migration have the same ID
 type DuplicatedIDError struct {
-	ID string
+	ID uint64
 }
 
 func (e *DuplicatedIDError) Error() string {
-	return fmt.Sprintf(`gormigrate: Duplicated migration ID: "%s"`, e.ID)
+	return fmt.Sprintf(`gormigrate: Duplicated migration ID: "%d"`, e.ID)
 }
 
 var (
@@ -62,7 +60,6 @@ var (
 	DefaultOptions = &Options{
 		TableName:      "migrations",
 		IDColumnName:   "id",
-		IDColumnSize:   255,
 		UseTransaction: false,
 	}
 
@@ -89,9 +86,6 @@ func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
 	if options.IDColumnName == "" {
 		options.IDColumnName = DefaultOptions.IDColumnName
 	}
-	if options.IDColumnSize == 0 {
-		options.IDColumnSize = DefaultOptions.IDColumnSize
-	}
 	return &Gormigrate{
 		db:         db,
 		options:    options,
@@ -109,15 +103,15 @@ func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 
 // Migrate executes all migrations that did not run yet.
 func (g *Gormigrate) Migrate() error {
-	return g.migrate("")
+	return g.migrate(0)
 }
 
 // MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
-func (g *Gormigrate) MigrateTo(migrationID string) error {
+func (g *Gormigrate) MigrateTo(migrationID uint64) error {
 	return g.migrate(migrationID)
 }
 
-func (g *Gormigrate) migrate(migrationID string) error {
+func (g *Gormigrate) migrate(migrationID uint64) error {
 	if len(g.migrations) == 0 {
 		return ErrNoMigrationDefined
 	}
@@ -145,7 +139,7 @@ func (g *Gormigrate) migrate(migrationID string) error {
 			g.rollback()
 			return err
 		}
-		if migrationID != "" && migration.ID == migrationID {
+		if migrationID != 0 && migration.ID == migrationID {
 			break
 		}
 	}
@@ -154,7 +148,7 @@ func (g *Gormigrate) migrate(migrationID string) error {
 }
 
 func (g *Gormigrate) checkDuplicatedID() error {
-	lookup := make(map[string]struct{}, len(g.migrations))
+	lookup := make(map[uint64]struct{}, len(g.migrations))
 	for _, m := range g.migrations {
 		if _, ok := lookup[m.ID]; ok {
 			return &DuplicatedIDError{ID: m.ID}
@@ -183,7 +177,7 @@ func (g *Gormigrate) RollbackLast() error {
 
 // RollbackTo undoes migrations up to the given migration that matches the `migrationID`.
 // Migration with the matching `migrationID` is not rolled back.
-func (g *Gormigrate) RollbackTo(migrationID string) error {
+func (g *Gormigrate) RollbackTo(migrationID uint64) error {
 	if len(g.migrations) == 0 {
 		return ErrNoMigrationDefined
 	}
@@ -257,7 +251,7 @@ func (g *Gormigrate) runInitSchema() error {
 }
 
 func (g *Gormigrate) runMigration(migration *Migration) error {
-	if len(migration.ID) == 0 {
+	if migration.ID == 0 {
 		return ErrMissingID
 	}
 
@@ -278,7 +272,7 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 		return nil
 	}
 
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
+	sql := fmt.Sprintf("CREATE TABLE %s (%s BIGINT PRIMARY KEY)", g.options.TableName, g.options.IDColumnName)
 	if err := g.db.Exec(sql).Error; err != nil {
 		return err
 	}
@@ -302,7 +296,7 @@ func (g *Gormigrate) isFirstRun() bool {
 	return count == 0
 }
 
-func (g *Gormigrate) insertMigration(id string) error {
+func (g *Gormigrate) insertMigration(id uint64) error {
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
 	return g.tx.Exec(sql, id).Error
 }

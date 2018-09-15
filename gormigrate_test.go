@@ -18,7 +18,7 @@ type database struct {
 
 var migrations = []*Migration{
 	{
-		ID: "201608301400",
+		ID: 201608301400,
 		Migrate: func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&Person{}).Error
 		},
@@ -27,7 +27,7 @@ var migrations = []*Migration{
 		},
 	},
 	{
-		ID: "201608301430",
+		ID: 201608301430,
 		Migrate: func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&Pet{}).Error
 		},
@@ -38,7 +38,7 @@ var migrations = []*Migration{
 }
 
 var extendedMigrations = append(migrations, &Migration{
-	ID: "201807221927",
+	ID: 201807221927,
 	Migrate: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&Book{}).Error
 	},
@@ -92,7 +92,7 @@ func TestMigrateTo(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		m := New(db, DefaultOptions, extendedMigrations)
 
-		err := m.MigrateTo("201608301430")
+		err := m.MigrateTo(201608301430)
 		assert.NoError(t, err)
 		assert.True(t, db.HasTable(&Person{}))
 		assert.True(t, db.HasTable(&Pet{}))
@@ -114,7 +114,7 @@ func TestRollbackTo(t *testing.T) {
 		assert.Equal(t, 3, tableCount(t, db, "migrations"))
 
 		// Rollback to the first migration: only the last 2 migrations are expected to be rolled back.
-		err = m.RollbackTo("201608301400")
+		err = m.RollbackTo(201608301400)
 		assert.NoError(t, err)
 		assert.True(t, db.HasTable(&Person{}))
 		assert.False(t, db.HasTable(&Pet{}))
@@ -162,13 +162,13 @@ func TestDuplicatedID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		migrationsDuplicatedID := []*Migration{
 			{
-				ID: "201705061500",
+				ID: 201705061500,
 				Migrate: func(tx *gorm.DB) error {
 					return nil
 				},
 			},
 			{
-				ID: "201705061500",
+				ID: 201705061500,
 				Migrate: func(tx *gorm.DB) error {
 					return nil
 				},
