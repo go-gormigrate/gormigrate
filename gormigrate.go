@@ -3,6 +3,7 @@ package gormigrate
 import (
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/jinzhu/gorm"
 )
@@ -25,6 +26,9 @@ type Options struct {
 	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
 	// Keep in mind that not all databases support DDL commands inside transactions.
 	UseTransaction bool
+	// SortMigration is the flag is responsible for the sorting of migrations on the ID,
+	// the migrations is sorted before running
+	SortMigration bool
 }
 
 // Migration represents a database migration (a modification to be made on the database).
@@ -61,6 +65,7 @@ var (
 		TableName:      "migrations",
 		IDColumnName:   "id",
 		UseTransaction: false,
+		SortMigration:  false,
 	}
 
 	// ErrRollbackImpossible is returned when trying to rollback a migration
@@ -86,6 +91,12 @@ func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
 	if options.IDColumnName == "" {
 		options.IDColumnName = DefaultOptions.IDColumnName
 	}
+	if options.SortMigration {
+		sort.Slice(migrations, func(i, j int) bool {
+			return migrations[i].ID < migrations[j].ID
+		})
+	}
+
 	return &Gormigrate{
 		db:         db,
 		options:    options,
