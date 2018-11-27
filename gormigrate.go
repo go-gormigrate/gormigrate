@@ -113,7 +113,10 @@ func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 
 // Migrate executes all migrations that did not run yet.
 func (g *Gormigrate) Migrate() error {
-	return g.migrate("")
+	if len(g.migrations) == 0 {
+		return ErrNoMigrationDefined
+	}
+	return g.migrate(g.migrations[len(g.migrations)-1].ID)
 }
 
 // MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
@@ -173,9 +176,6 @@ func (g *Gormigrate) checkDuplicatedID() error {
 }
 
 func (g *Gormigrate) checkIDExist(migrationID string) error {
-	if migrationID == "" {
-		return nil
-	}
 	for _, migrate := range g.migrations {
 		if migrate.ID == migrationID {
 			return nil

@@ -143,6 +143,16 @@ func TestInitSchema(t *testing.T) {
 	})
 }
 
+func TestMigrationIDDoesNotExist(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, migrations)
+		assert.Equal(t, ErrMigrationIDDoesNotExist, m.MigrateTo("1234"))
+		assert.Equal(t, ErrMigrationIDDoesNotExist, m.RollbackTo("1234"))
+		assert.Equal(t, ErrMigrationIDDoesNotExist, m.MigrateTo(""))
+		assert.Equal(t, ErrMigrationIDDoesNotExist, m.RollbackTo(""))
+	})
+}
+
 func TestMissingID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		migrationsMissingID := []*Migration{
