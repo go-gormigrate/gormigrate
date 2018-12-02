@@ -79,6 +79,10 @@ var (
 	// ErrNoRunnedMigration is returned when any runned migration was found while
 	// running RollbackLast
 	ErrNoRunnedMigration = errors.New("gormigrate: Could not find last runned migration")
+
+	// ErrMigrationIDDoesNotExist is returned when migrating or rolling back to a migration ID that
+	// does not exist in the list of migrations
+	ErrMigrationIDDoesNotExist = errors.New("gormigrate: Tried to migrate to an ID that doesn't exist")
 )
 
 // New returns a new Gormigrate.
@@ -109,7 +113,10 @@ func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 
 // Migrate executes all migrations that did not run yet.
 func (g *Gormigrate) Migrate() error {
-	return g.migrate("")
+	if len(g.migrations) == 0 {
+		return ErrNoMigrationDefined
+	}
+	return g.migrate(g.migrations[len(g.migrations)-1].ID)
 }
 
 // MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
@@ -123,6 +130,10 @@ func (g *Gormigrate) migrate(migrationID string) error {
 	}
 
 	if err := g.checkDuplicatedID(); err != nil {
+		return err
+	}
+
+	if err := g.checkIDExist(migrationID); err != nil {
 		return err
 	}
 
@@ -164,6 +175,15 @@ func (g *Gormigrate) checkDuplicatedID() error {
 	return nil
 }
 
+func (g *Gormigrate) checkIDExist(migrationID string) error {
+	for _, migrate := range g.migrations {
+		if migrate.ID == migrationID {
+			return nil
+		}
+	}
+	return ErrMigrationIDDoesNotExist
+}
+
 // RollbackLast undo the last migration
 func (g *Gormigrate) RollbackLast() error {
 	if len(g.migrations) == 0 {
@@ -186,6 +206,10 @@ func (g *Gormigrate) RollbackLast() error {
 func (g *Gormigrate) RollbackTo(migrationID string) error {
 	if len(g.migrations) == 0 {
 		return ErrNoMigrationDefined
+	}
+
+	if err := g.checkIDExist(migrationID); err != nil {
+		return err
 	}
 
 	g.begin()
