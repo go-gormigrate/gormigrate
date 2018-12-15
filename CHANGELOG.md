@@ -1,0 +1,32 @@
+# Changelog
+
+## v1.3.0 - 2018-12-02
+
+- Starting from this release, this package is available as a [Go Module](https://github.com/golang/go/wiki/Modules).
+  Import path is still `gopkg.in/gormigrate.v1` in this major version, but will
+  change to `github.com/go-gormigrate/gormigrate/v2` in the next major release;
+- Validate the ID exists on the migration list (#20, #21).
+
+## v1.2.1 - 2018-09-07
+
+- An empty migration list is not allowed anymore. Please, make sure that you
+  have at least one migration, even if dummy;
+- Added `MigrateTo` and `RollbackTo` methods (#15);
+- CI now runs tests for SQLite, PostgreSQL, MySQL and Microsoft SQL Server.
+
+## v1.2.0 - 2018-07-12
+
+- Add `IDColumnSize` options, which defaults to `255` (#7);
+
+## v1.1.4 - 2018-05-06
+
+- Assuming default options if blank;
+- Returning an error if the migration list has a duplicated migration ID.
+
+## v1.1.3 - 2018-02-25
+
+- Fix `RollbackLast` (#4).
+
+---
+
+Sorry, we don't have changelog for older releases 😢.
