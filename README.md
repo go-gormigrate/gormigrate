@@ -130,7 +130,7 @@ m.InitSchema(func(tx *gorm.DB) error {
 		&Person{},
 		&Pet{},
 		// all other tables of you app
-	)
+	).Error
 	if err != nil {
 		return err
 	}
