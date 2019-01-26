@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.3.1 - 2019-01-26
+
+- Fixed `testify` import path from `gopkg.in/stretchr/testify.v1` to
+  `github.com/stretchr/testify` ([#27](https://github.com/go-gormigrate/gormigrate/pull/27)).
+
 ## v1.3.0 - 2018-12-02
 
 - Starting from this release, this package is available as a [Go Module](https://github.com/golang/go/wiki/Modules).
