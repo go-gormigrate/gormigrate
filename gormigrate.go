@@ -7,6 +7,10 @@ import (
 	"github.com/jinzhu/gorm"
 )
 
+const (
+	initSchemaMigrationId = "SCHEMA_INIT"
+)
+
 // MigrateFunc is the func signature for migrating.
 type MigrateFunc func(*gorm.DB) error
 
@@ -46,6 +50,15 @@ type Gormigrate struct {
 	options    *Options
 	migrations []*Migration
 	initSchema InitSchemaFunc
+}
+
+// ReservedIDError is returned when a migration is using a reserved ID
+type ReservedIDError struct {
+	ID string
+}
+
+func (e *ReservedIDError) Error() string {
+	return fmt.Sprintf(`gormigrate: Reserved migration ID: "%s"`, e.ID)
 }
 
 // DuplicatedIDError is returned when more than one migration have the same ID
@@ -129,6 +142,10 @@ func (g *Gormigrate) migrate(migrationID string) error {
 		return ErrNoMigrationDefined
 	}
 
+	if err := g.checkReservedID(); err != nil {
+		return err
+	}
+
 	if err := g.checkDuplicatedID(); err != nil {
 		return err
 	}
@@ -164,9 +181,23 @@ func (g *Gormigrate) migrate(migrationID string) error {
 	return g.commit()
 }
 
+// Check whether any migration is using a reserved ID.
+// For now there's only have one reserved ID, but there may be more in the future.
+func (g *Gormigrate) checkReservedID() error {
+	for _, m := range g.migrations {
+		if m.ID == initSchemaMigrationId {
+			return &ReservedIDError{ID: m.ID}
+		}
+	}
+	return nil
+}
+
 func (g *Gormigrate) checkDuplicatedID() error {
 	lookup := make(map[string]struct{}, len(g.migrations))
 	for _, m := range g.migrations {
+		if m.ID == initSchemaMigrationId {
+			return &DuplicatedIDError{ID: m.ID}
+		}
 		if _, ok := lookup[m.ID]; ok {
 			return &DuplicatedIDError{ID: m.ID}
 		}

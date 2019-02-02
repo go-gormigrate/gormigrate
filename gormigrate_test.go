@@ -168,6 +168,23 @@ func TestMissingID(t *testing.T) {
 	})
 }
 
+func TestReservedID(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		migrationsReservedID := []*Migration{
+			{
+				ID: "SCHEMA_INIT",
+				Migrate: func(tx *gorm.DB) error {
+					return nil
+				},
+			},
+		}
+
+		m := New(db, DefaultOptions, migrationsReservedID)
+		_, isReservedIDError := m.Migrate().(*ReservedIDError)
+		assert.True(t, isReservedIDError)
+	})
+}
+
 func TestDuplicatedID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		migrationsDuplicatedID := []*Migration{
