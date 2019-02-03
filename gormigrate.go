@@ -204,9 +204,6 @@ func (g *Gormigrate) checkReservedID() error {
 func (g *Gormigrate) checkDuplicatedID() error {
 	lookup := make(map[string]struct{}, len(g.migrations))
 	for _, m := range g.migrations {
-		if m.ID == initSchemaMigrationId {
-			return &DuplicatedIDError{ID: m.ID}
-		}
 		if _, ok := lookup[m.ID]; ok {
 			return &DuplicatedIDError{ID: m.ID}
 		}
