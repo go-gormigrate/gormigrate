@@ -89,9 +89,9 @@ var (
 	// ErrMissingID is returned when the ID od migration is equal to ""
 	ErrMissingID = errors.New("gormigrate: Missing ID in migration")
 
-	// ErrNoRunnedMigration is returned when any runned migration was found while
+	// ErrNoRunMigration is returned when any run migration was found while
 	// running RollbackLast
-	ErrNoRunnedMigration = errors.New("gormigrate: Could not find last runned migration")
+	ErrNoRunMigration = errors.New("gormigrate: Could not find last run migration")
 
 	// ErrMigrationIDDoesNotExist is returned when migrating or rolling back to a migration ID that
 	// does not exist in the list of migrations
@@ -230,12 +230,12 @@ func (g *Gormigrate) RollbackLast() error {
 		return ErrNoMigrationDefined
 	}
 
-	lastRunnedMigration, err := g.getLastRunnedMigration()
+	lastRunMigration, err := g.getLastRunMigration()
 	if err != nil {
 		return err
 	}
 
-	if err := g.RollbackMigration(lastRunnedMigration); err != nil {
+	if err := g.RollbackMigration(lastRunMigration); err != nil {
 		return err
 	}
 	return nil
@@ -270,14 +270,14 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 	return g.commit()
 }
 
-func (g *Gormigrate) getLastRunnedMigration() (*Migration, error) {
+func (g *Gormigrate) getLastRunMigration() (*Migration, error) {
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
 		if g.migrationDidRun(migration) {
 			return migration, nil
 		}
 	}
-	return nil, ErrNoRunnedMigration
+	return nil, ErrNoRunMigration
 }
 
 // RollbackMigration undo a migration.
