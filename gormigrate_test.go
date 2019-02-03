@@ -123,9 +123,11 @@ func TestRollbackTo(t *testing.T) {
 	})
 }
 
-func TestInitSchema(t *testing.T) {
+// If initSchema is defined, but no migrations are provided,
+// then initSchema is executed.
+func TestInitSchemaNoMigrations(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, migrations)
+		m := New(db, DefaultOptions, []*Migration{})
 		m.InitSchema(func(tx *gorm.DB) error {
 			if err := tx.AutoMigrate(&Person{}).Error; err != nil {
 				return err
@@ -139,7 +141,27 @@ func TestInitSchema(t *testing.T) {
 		assert.NoError(t, m.Migrate())
 		assert.True(t, db.HasTable(&Person{}))
 		assert.True(t, db.HasTable(&Pet{}))
-		assert.Equal(t, 2, tableCount(t, db, "migrations"))
+		assert.Equal(t, 1, tableCount(t, db, "migrations"))
+	})
+}
+
+// If initSchema is defined and migrations are provided,
+// then initSchema is executed and the migration IDs are stored,
+// even though the relevant migrations are not applied.
+func TestInitSchemaWithMigrations(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, migrations)
+		m.InitSchema(func(tx *gorm.DB) error {
+			if err := tx.AutoMigrate(&Person{}).Error; err != nil {
+				return err
+			}
+			return nil
+		})
+
+		assert.NoError(t, m.Migrate())
+		assert.True(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 3, tableCount(t, db, "migrations"))
 	})
 }
 

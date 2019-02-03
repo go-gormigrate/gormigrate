@@ -126,19 +126,26 @@ func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 
 // Migrate executes all migrations that did not run yet.
 func (g *Gormigrate) Migrate() error {
-	if len(g.migrations) == 0 {
+	if !g.hasMigrations() {
 		return ErrNoMigrationDefined
 	}
-	return g.migrate(g.migrations[len(g.migrations)-1].ID)
+	var targetMigrationID string
+	if len(g.migrations) > 0 {
+		targetMigrationID = g.migrations[len(g.migrations)-1].ID
+	}
+	return g.migrate(targetMigrationID)
 }
 
 // MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
 func (g *Gormigrate) MigrateTo(migrationID string) error {
+	if err := g.checkIDExist(migrationID); err != nil {
+		return err
+	}
 	return g.migrate(migrationID)
 }
 
 func (g *Gormigrate) migrate(migrationID string) error {
-	if len(g.migrations) == 0 {
+	if !g.hasMigrations() {
 		return ErrNoMigrationDefined
 	}
 
@@ -150,17 +157,13 @@ func (g *Gormigrate) migrate(migrationID string) error {
 		return err
 	}
 
-	if err := g.checkIDExist(migrationID); err != nil {
-		return err
-	}
-
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
 
 	g.begin()
 
-	if g.initSchema != nil && g.isFirstRun() {
+	if g.initSchema != nil && !g.wasSchemaInitialized() {
 		if err := g.runInitSchema(); err != nil {
 			g.rollback()
 			return err
@@ -179,6 +182,12 @@ func (g *Gormigrate) migrate(migrationID string) error {
 	}
 
 	return g.commit()
+}
+
+// There are migrations to apply if either there's a defined
+// initSchema function or if the list of migrations is not empty.
+func (g *Gormigrate) hasMigrations() bool {
+	return g.initSchema != nil || len(g.migrations) > 0
 }
 
 // Check whether any migration is using a reserved ID.
@@ -301,6 +310,9 @@ func (g *Gormigrate) runInitSchema() error {
 	if err := g.initSchema(g.tx); err != nil {
 		return err
 	}
+	if err := g.insertMigration(initSchemaMigrationId); err != nil {
+		return err
+	}
 
 	for _, migration := range g.migrations {
 		if err := g.insertMigration(migration.ID); err != nil {
@@ -349,12 +361,10 @@ func (g *Gormigrate) migrationDidRun(m *Migration) bool {
 	return count > 0
 }
 
-func (g *Gormigrate) isFirstRun() bool {
-	var count int
-	g.db.
-		Table(g.options.TableName).
-		Count(&count)
-	return count == 0
+// Tell whether initSchema was already executed, by looking
+// for the relevant (reserved) migration ID.
+func (g *Gormigrate) wasSchemaInitialized() bool {
+	return g.migrationDidRun(&Migration{ID: initSchemaMigrationId})
 }
 
 func (g *Gormigrate) insertMigration(id string) error {

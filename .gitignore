@@ -30,4 +30,6 @@ _testmain.go
 
 sample.env
 
+# Misc
 .idea/
+docker-compose*
