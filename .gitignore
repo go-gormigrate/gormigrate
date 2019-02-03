@@ -27,3 +27,9 @@ _testmain.go
 *.sqlite3
 /bin
 /.env
+
+sample.env
+
+# Misc
+.idea/
+docker-compose*
