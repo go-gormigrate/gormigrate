@@ -163,7 +163,7 @@ func (g *Gormigrate) migrate(migrationID string) error {
 
 	g.begin()
 
-	if g.initSchema != nil && !g.wasSchemaInitialized() {
+	if g.initSchema != nil && !g.canInitializeSchema() {
 		if err := g.runInitSchema(); err != nil {
 			g.rollback()
 			return err
@@ -358,10 +358,19 @@ func (g *Gormigrate) migrationDidRun(m *Migration) bool {
 	return count > 0
 }
 
-// Tell whether initSchema was already executed, by looking
-// for the relevant (reserved) migration ID.
-func (g *Gormigrate) wasSchemaInitialized() bool {
-	return g.migrationDidRun(&Migration{ID: initSchemaMigrationId})
+// The schema can be initialised only if it hasn't been initialised yet
+// and no other migration has been applied already.
+func (g *Gormigrate) canInitializeSchema() bool {
+	if g.migrationDidRun(&Migration{ID: initSchemaMigrationId}) {
+		return true
+	}
+
+	// If the ID doesn't exist, we also want the list of migrations to be empty
+	var count int
+	g.db.
+		Table(g.options.TableName).
+		Count(&count)
+	return count != 0
 }
 
 func (g *Gormigrate) insertMigration(id string) error {

@@ -165,6 +165,65 @@ func TestInitSchemaWithMigrations(t *testing.T) {
 	})
 }
 
+// If the schema has already been initialised,
+// then initSchema() is not executed, even if defined.
+func TestInitSchemaAlreadyInitialised(t *testing.T) {
+	type Car struct {
+		gorm.Model
+	}
+
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, []*Migration{})
+
+		// Migrate with empty initialisation
+		m.InitSchema(func(tx *gorm.DB) error {
+			return nil
+		})
+		assert.NoError(t, m.Migrate())
+
+		// Then migrate again, this time with a non empty initialisation
+		// This second initialisation should not happen!
+		m.InitSchema(func(tx *gorm.DB) error {
+			if err := tx.AutoMigrate(&Car{}).Error; err != nil {
+				return err
+			}
+			return nil
+		})
+		assert.NoError(t, m.Migrate())
+
+		assert.False(t, db.HasTable(&Car{}))
+		assert.Equal(t, 1, tableCount(t, db, "migrations"))
+	})
+}
+
+// If the schema has already been initialised,
+// then initSchema() is not executed, even if defined.
+func TestInitSchemaExistingMigrations(t *testing.T) {
+	type Car struct {
+		gorm.Model
+	}
+
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, migrations)
+
+		// Migrate without initialisation
+		assert.NoError(t, m.Migrate())
+
+		// Then migrate again, this time with a non empty initialisation
+		// This initialisation should not happen!
+		m.InitSchema(func(tx *gorm.DB) error {
+			if err := tx.AutoMigrate(&Car{}).Error; err != nil {
+				return err
+			}
+			return nil
+		})
+		assert.NoError(t, m.Migrate())
+
+		assert.False(t, db.HasTable(&Car{}))
+		assert.Equal(t, 2, tableCount(t, db, "migrations"))
+	})
+}
+
 func TestMigrationIDDoesNotExist(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		m := New(db, DefaultOptions, migrations)
