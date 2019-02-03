@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.4.0 - 2019-02-03
+
+- Allow an empty migration list if a `InitSchema` function is defined
+  ([#28](https://github.com/go-gormigrate/gormigrate/pull/28)).
+
 ## v1.3.1 - 2019-01-26
 
 - Fixed `testify` import path from `gopkg.in/stretchr/testify.v1` to
