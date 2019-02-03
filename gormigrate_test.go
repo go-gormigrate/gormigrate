@@ -196,7 +196,8 @@ func TestInitSchemaAlreadyInitialised(t *testing.T) {
 	})
 }
 
-// If the schema has already been initialised,
+// If the schema has not already been initialised,
+// but any other migration has already been applied,
 // then initSchema() is not executed, even if defined.
 func TestInitSchemaExistingMigrations(t *testing.T) {
 	type Car struct {
