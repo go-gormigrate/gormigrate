@@ -163,7 +163,7 @@ func (g *Gormigrate) migrate(migrationID string) error {
 
 	g.begin()
 
-	if g.initSchema != nil && !g.canInitializeSchema() {
+	if g.initSchema != nil && g.canInitializeSchema() {
 		if err := g.runInitSchema(); err != nil {
 			g.rollback()
 			return err
@@ -362,7 +362,7 @@ func (g *Gormigrate) migrationDidRun(m *Migration) bool {
 // and no other migration has been applied already.
 func (g *Gormigrate) canInitializeSchema() bool {
 	if g.migrationDidRun(&Migration{ID: initSchemaMigrationId}) {
-		return true
+		return false
 	}
 
 	// If the ID doesn't exist, we also want the list of migrations to be empty
@@ -370,7 +370,7 @@ func (g *Gormigrate) canInitializeSchema() bool {
 	g.db.
 		Table(g.options.TableName).
 		Count(&count)
-	return count != 0
+	return count == 0
 }
 
 func (g *Gormigrate) insertMigration(id string) error {
