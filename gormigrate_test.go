@@ -142,47 +142,6 @@ func TestRollbackTo(t *testing.T) {
 	})
 }
 
-func TestMigration_WithUseTransactions(t *testing.T) {
-	options := DefaultOptions
-	options.UseTransaction = true
-
-	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, options, migrations)
-
-		err := m.Migrate()
-		require.NoError(t, err)
-		assert.True(t, db.HasTable(&Person{}))
-		assert.True(t, db.HasTable(&Pet{}))
-		assert.Equal(t, 2, tableCount(t, db, "migrations"))
-
-		err = m.RollbackLast()
-		require.NoError(t, err)
-		assert.True(t, db.HasTable(&Person{}))
-		assert.False(t, db.HasTable(&Pet{}))
-		assert.Equal(t, 1, tableCount(t, db, "migrations"))
-
-		err = m.RollbackLast()
-		require.NoError(t, err)
-		assert.False(t, db.HasTable(&Person{}))
-		assert.False(t, db.HasTable(&Pet{}))
-		assert.Equal(t, 0, tableCount(t, db, "migrations"))
-	}, "postgres")
-}
-
-func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
-	options := DefaultOptions
-	options.UseTransaction = true
-
-	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, options, failingMigration)
-
-		// First, apply all migrations.
-		err := m.Migrate()
-		assert.Error(t, err)
-		assert.False(t, db.HasTable(&Book{}))
-	}, "postgres")
-}
-
 // If initSchema is defined, but no migrations are provided,
 // then initSchema is executed.
 func TestInitSchemaNoMigrations(t *testing.T) {
@@ -364,6 +323,48 @@ func TestEmptyMigrationList(t *testing.T) {
 			assert.Equal(t, ErrNoMigrationDefined, err)
 		})
 	})
+}
+
+func TestMigration_WithUseTransactions(t *testing.T) {
+	options := DefaultOptions
+	options.UseTransaction = true
+
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, options, migrations)
+
+		err := m.Migrate()
+		require.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.True(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 2, tableCount(t, db, "migrations"))
+
+		err = m.RollbackLast()
+		require.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 1, tableCount(t, db, "migrations"))
+
+		err = m.RollbackLast()
+		require.NoError(t, err)
+		assert.False(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 0, tableCount(t, db, "migrations"))
+	}, "postgres")
+}
+
+func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
+	options := DefaultOptions
+	options.UseTransaction = true
+
+	forEachDatabase(t, func(db *gorm.DB) {
+		assert.True(t, true)
+		m := New(db, options, failingMigration)
+
+		// First, apply all migrations.
+		err := m.Migrate()
+		assert.Error(t, err)
+		assert.False(t, db.HasTable(&Book{}))
+	}, "postgres")
 }
 
 func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int) {
