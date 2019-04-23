@@ -1,6 +1,7 @@
 package gormigrate
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -47,6 +48,22 @@ var extendedMigrations = append(migrations, &Migration{
 		return tx.DropTable("books").Error
 	},
 })
+
+var failingMigration = []*Migration{
+	{
+		ID: "201904231300",
+		Migrate: func(tx *gorm.DB) error {
+			err := tx.AutoMigrate(&Book{}).Error
+			if err != nil {
+				return err
+			}
+			return errors.New("this transaction should be rolled back")
+		},
+		Rollback: func(tx *gorm.DB) error {
+			return nil
+		},
+	},
+}
 
 type Person struct {
 	gorm.Model
@@ -121,6 +138,47 @@ func TestRollbackTo(t *testing.T) {
 		assert.False(t, db.HasTable(&Pet{}))
 		assert.False(t, db.HasTable(&Book{}))
 		assert.Equal(t, 1, tableCount(t, db, "migrations"))
+	})
+}
+
+func TestMigration_WithUseTransactions(t *testing.T) {
+	options := DefaultOptions
+	options.UseTransaction = true
+
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, options, migrations)
+
+		err := m.Migrate()
+		require.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.True(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 2, tableCount(t, db, "migrations"))
+
+		err = m.RollbackLast()
+		require.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 1, tableCount(t, db, "migrations"))
+
+		err = m.RollbackLast()
+		require.NoError(t, err)
+		assert.False(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 0, tableCount(t, db, "migrations"))
+	})
+}
+
+func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
+	options := DefaultOptions
+	options.UseTransaction = true
+
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, options, failingMigration)
+
+		// First, apply all migrations.
+		err := m.Migrate()
+		assert.Error(t, err)
+		assert.False(t, db.HasTable(&Book{}))
 	})
 }
 
