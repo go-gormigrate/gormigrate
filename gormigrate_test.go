@@ -7,6 +7,7 @@ import (
 	"github.com/jinzhu/gorm"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var databases []database
@@ -318,7 +319,7 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB)) {
 
 	for _, database := range databases {
 		db, err := gorm.Open(database.name, os.Getenv(database.connEnv))
-		assert.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
+		require.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
 
 		defer db.Close()
 
