@@ -360,7 +360,7 @@ func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 		assert.True(t, true)
 		m := New(db, options, failingMigration)
 
-		// First, apply all migrations.
+		// Migration should return an error and not leave around a Book table
 		err := m.Migrate()
 		assert.Error(t, err)
 		assert.False(t, db.HasTable(&Book{}))
