@@ -338,11 +338,7 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 }
 
 func (g *Gormigrate) createMigrationTableIfNotExists() error {
-	if g.db.HasTable(g.options.TableName) {
-		return nil
-	}
-
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
+	sql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (%s VARCHAR(%d) PRIMARY KEY);`, g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
 	if err := g.db.Exec(sql).Error; err != nil {
 		return err
 	}
