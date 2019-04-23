@@ -157,11 +157,11 @@ func (g *Gormigrate) migrate(migrationID string) error {
 		return err
 	}
 
+	g.begin()
+
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
-
-	g.begin()
 
 	if g.initSchema != nil && g.canInitializeSchema() {
 		if err := g.runInitSchema(); err != nil {
@@ -339,7 +339,7 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 
 func (g *Gormigrate) createMigrationTableIfNotExists() error {
 	sql := fmt.Sprintf(`CREATE TABLE IF NOT EXISTS %s (%s VARCHAR(%d) PRIMARY KEY);`, g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
-	if err := g.db.Exec(sql).Error; err != nil {
+	if err := g.tx.Exec(sql).Error; err != nil {
 		return err
 	}
 	return nil
@@ -363,7 +363,7 @@ func (g *Gormigrate) canInitializeSchema() bool {
 
 	// If the ID doesn't exist, we also want the list of migrations to be empty
 	var count int
-	g.db.
+	g.tx.
 		Table(g.options.TableName).
 		Count(&count)
 	return count == 0
