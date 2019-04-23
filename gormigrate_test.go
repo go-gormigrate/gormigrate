@@ -349,7 +349,7 @@ func TestMigration_WithUseTransactions(t *testing.T) {
 		assert.False(t, db.HasTable(&Person{}))
 		assert.False(t, db.HasTable(&Pet{}))
 		assert.Equal(t, 0, tableCount(t, db, "migrations"))
-	}, "postgres")
+	}, "postgres", "sqlite3")
 }
 
 func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
@@ -364,7 +364,7 @@ func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 		err := m.Migrate()
 		assert.Error(t, err)
 		assert.False(t, db.HasTable(&Book{}))
-	}, "postgres")
+	}, "postgres", "sqlite3")
 }
 
 func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int) {

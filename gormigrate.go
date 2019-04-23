@@ -227,10 +227,12 @@ func (g *Gormigrate) RollbackLast() error {
 		return ErrNoMigrationDefined
 	}
 
+	g.begin()
 	lastRunMigration, err := g.getLastRunMigration()
 	if err != nil {
 		return err
 	}
+	g.rollback()
 
 	if err := g.RollbackMigration(lastRunMigration); err != nil {
 		return err
@@ -297,7 +299,7 @@ func (g *Gormigrate) rollbackMigration(m *Migration) error {
 	}
 
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
-	if err := g.db.Exec(sql, m.ID).Error; err != nil {
+	if err := g.tx.Exec(sql, m.ID).Error; err != nil {
 		return err
 	}
 	return nil
@@ -338,7 +340,7 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 }
 
 func (g *Gormigrate) createMigrationTableIfNotExists() error {
-	if g.db.HasTable(g.options.TableName) {
+	if g.tx.HasTable(g.options.TableName) {
 		return nil
 	}
 
@@ -351,7 +353,7 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 
 func (g *Gormigrate) migrationDidRun(m *Migration) bool {
 	var count int
-	g.db.
+	g.tx.
 		Table(g.options.TableName).
 		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.ID).
 		Count(&count)
