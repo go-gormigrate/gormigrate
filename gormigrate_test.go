@@ -2,6 +2,7 @@ package gormigrate
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"testing"
 
@@ -377,9 +378,10 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...strin
 
 	for _, database := range databases {
 		if len(dialects) > 0 && !contains(dialects, database.name) {
-			continue
+			t.Skip(fmt.Sprintf("test is not supported by [%s] dialect", database.name))
 		}
 
+		// Ensure defers are not stacked up for each DB
 		func() {
 			db, err := gorm.Open(database.name, os.Getenv(database.connEnv))
 			require.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
