@@ -165,7 +165,7 @@ func TestMigration_WithUseTransactions(t *testing.T) {
 		assert.False(t, db.HasTable(&Person{}))
 		assert.False(t, db.HasTable(&Pet{}))
 		assert.Equal(t, 0, tableCount(t, db, "migrations"))
-	})
+	}, "postgres")
 }
 
 func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
@@ -179,7 +179,7 @@ func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 		err := m.Migrate()
 		assert.Error(t, err)
 		assert.False(t, db.HasTable(&Book{}))
-	})
+	}, "postgres")
 }
 
 // If initSchema is defined, but no migrations are provided,
@@ -370,12 +370,16 @@ func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int) {
 	return
 }
 
-func forEachDatabase(t *testing.T, fn func(database *gorm.DB)) {
+func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...string) {
 	if len(databases) == 0 {
 		panic("No database choosen for testing!")
 	}
 
 	for _, database := range databases {
+		if len(dialects) > 0 && !contains(dialects, database.name) {
+			continue
+		}
+
 		db, err := gorm.Open(database.name, os.Getenv(database.connEnv))
 		require.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
 
@@ -386,4 +390,13 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB)) {
 
 		fn(db)
 	}
+}
+
+func contains(haystack []string, needle string) bool {
+	for _, straw := range haystack {
+		if straw == needle {
+			return true
+		}
+	}
+	return false
 }
