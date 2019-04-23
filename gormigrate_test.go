@@ -380,15 +380,17 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...strin
 			continue
 		}
 
-		db, err := gorm.Open(database.name, os.Getenv(database.connEnv))
-		require.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
+		func() {
+			db, err := gorm.Open(database.name, os.Getenv(database.connEnv))
+			require.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
 
-		defer db.Close()
+			defer db.Close()
 
-		// ensure tables do not exists
-		assert.NoError(t, db.DropTableIfExists("migrations", "people", "pets").Error)
+			// ensure tables do not exists
+			assert.NoError(t, db.DropTableIfExists("migrations", "people", "pets").Error)
 
-		fn(db)
+			fn(db)
+		}()
 	}
 }
 
