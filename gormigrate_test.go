@@ -54,8 +54,7 @@ var failingMigration = []*Migration{
 	{
 		ID: "201904231300",
 		Migrate: func(tx *gorm.DB) error {
-			err := tx.AutoMigrate(&Book{}).Error
-			if err != nil {
+			if err := tx.AutoMigrate(&Book{}).Error; err != nil {
 				return err
 			}
 			return errors.New("this transaction should be rolled back")
