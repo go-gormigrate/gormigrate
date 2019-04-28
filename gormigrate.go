@@ -158,6 +158,7 @@ func (g *Gormigrate) migrate(migrationID string) error {
 	}
 
 	g.begin()
+	defer g.rollback()
 
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
@@ -165,7 +166,6 @@ func (g *Gormigrate) migrate(migrationID string) error {
 
 	if g.initSchema != nil && g.canInitializeSchema() {
 		if err := g.runInitSchema(); err != nil {
-			g.rollback()
 			return err
 		}
 		return g.commit()
@@ -173,7 +173,6 @@ func (g *Gormigrate) migrate(migrationID string) error {
 
 	for _, migration := range g.migrations {
 		if err := g.runMigration(migration); err != nil {
-			g.rollback()
 			return err
 		}
 		if migrationID != "" && migration.ID == migrationID {
