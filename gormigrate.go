@@ -227,16 +227,17 @@ func (g *Gormigrate) RollbackLast() error {
 	}
 
 	g.begin()
+	defer g.rollback()
+
 	lastRunMigration, err := g.getLastRunMigration()
 	if err != nil {
 		return err
 	}
-	g.rollback()
 
-	if err := g.RollbackMigration(lastRunMigration); err != nil {
+	if err := g.rollbackMigration(lastRunMigration); err != nil {
 		return err
 	}
-	return nil
+	return g.commit()
 }
 
 // RollbackTo undoes migrations up to the given migration that matches the `migrationID`.
