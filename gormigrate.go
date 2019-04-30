@@ -252,6 +252,7 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 	}
 
 	g.begin()
+	defer g.rollback()
 
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
@@ -260,12 +261,10 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 		}
 		if g.migrationDidRun(migration) {
 			if err := g.rollbackMigration(migration); err != nil {
-				g.rollback()
 				return err
 			}
 		}
 	}
-
 	return g.commit()
 }
 
@@ -282,8 +281,9 @@ func (g *Gormigrate) getLastRunMigration() (*Migration, error) {
 // RollbackMigration undo a migration.
 func (g *Gormigrate) RollbackMigration(m *Migration) error {
 	g.begin()
+	defer g.rollback()
+
 	if err := g.rollbackMigration(m); err != nil {
-		g.rollback()
 		return err
 	}
 	return g.commit()
