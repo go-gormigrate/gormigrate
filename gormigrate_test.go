@@ -1,12 +1,15 @@
 package gormigrate
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"testing"
 
 	"github.com/jinzhu/gorm"
 	_ "github.com/joho/godotenv/autoload"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var databases []database
@@ -46,6 +49,21 @@ var extendedMigrations = append(migrations, &Migration{
 		return tx.DropTable("books").Error
 	},
 })
+
+var failingMigration = []*Migration{
+	{
+		ID: "201904231300",
+		Migrate: func(tx *gorm.DB) error {
+			if err := tx.AutoMigrate(&Book{}).Error; err != nil {
+				return err
+			}
+			return errors.New("this transaction should be rolled back")
+		},
+		Rollback: func(tx *gorm.DB) error {
+			return nil
+		},
+	},
+}
 
 type Person struct {
 	gorm.Model
@@ -306,25 +324,83 @@ func TestEmptyMigrationList(t *testing.T) {
 	})
 }
 
+func TestMigration_WithUseTransactions(t *testing.T) {
+	options := DefaultOptions
+	options.UseTransaction = true
+
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, options, migrations)
+
+		err := m.Migrate()
+		require.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.True(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 2, tableCount(t, db, "migrations"))
+
+		err = m.RollbackLast()
+		require.NoError(t, err)
+		assert.True(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 1, tableCount(t, db, "migrations"))
+
+		err = m.RollbackLast()
+		require.NoError(t, err)
+		assert.False(t, db.HasTable(&Person{}))
+		assert.False(t, db.HasTable(&Pet{}))
+		assert.Equal(t, 0, tableCount(t, db, "migrations"))
+	}, "postgres", "sqlite3", "mssql")
+}
+
+func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
+	options := DefaultOptions
+	options.UseTransaction = true
+
+	forEachDatabase(t, func(db *gorm.DB) {
+		assert.True(t, true)
+		m := New(db, options, failingMigration)
+
+		// Migration should return an error and not leave around a Book table
+		err := m.Migrate()
+		assert.Error(t, err)
+		assert.False(t, db.HasTable(&Book{}))
+	}, "postgres", "sqlite3", "mssql")
+}
+
 func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int) {
 	assert.NoError(t, db.Table(tableName).Count(&count).Error)
 	return
 }
 
-func forEachDatabase(t *testing.T, fn func(database *gorm.DB)) {
+func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...string) {
 	if len(databases) == 0 {
 		panic("No database choosen for testing!")
 	}
 
 	for _, database := range databases {
-		db, err := gorm.Open(database.name, os.Getenv(database.connEnv))
-		assert.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
+		if len(dialects) > 0 && !contains(dialects, database.name) {
+			t.Skip(fmt.Sprintf("test is not supported by [%s] dialect", database.name))
+		}
 
-		defer db.Close()
+		// Ensure defers are not stacked up for each DB
+		func() {
+			db, err := gorm.Open(database.name, os.Getenv(database.connEnv))
+			require.NoError(t, err, "Could not connect to database %s, %v", database.name, err)
 
-		// ensure tables do not exists
-		assert.NoError(t, db.DropTableIfExists("migrations", "people", "pets").Error)
+			defer db.Close()
 
-		fn(db)
+			// ensure tables do not exists
+			assert.NoError(t, db.DropTableIfExists("migrations", "people", "pets").Error)
+
+			fn(db)
+		}()
 	}
+}
+
+func contains(haystack []string, needle string) bool {
+	for _, straw := range haystack {
+		if straw == needle {
+			return true
+		}
+	}
+	return false
 }
