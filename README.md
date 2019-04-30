@@ -5,9 +5,9 @@
 [![Build Status](https://travis-ci.org/go-gormigrate/gormigrate.svg?branch=master)](https://travis-ci.org/go-gormigrate/gormigrate)
 [![Build status](https://ci.appveyor.com/api/projects/status/89e414sklbwefyyp?svg=true)](https://ci.appveyor.com/project/andreynering/gormigrate)
 
-Gormigrate is a migration helper for [Gorm][gorm].
+Gormigrate is a minimalistic migration helper for [Gorm][gorm].
 Gorm already has useful [migrate functions][gormmigrate], just misses
-proper schema versioning and rollback capabilities.
+proper schema versioning and migration rollback support.
 
 ## Supported databases
 

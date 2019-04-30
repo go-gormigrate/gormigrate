@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.5.0 - 2019-04-29
+
+- Fixed and written tests for transaction handling
+  ([#34](https://github.com/go-gormigrate/gormigrate/pull/34), [#10](https://github.com/go-gormigrate/gormigrate/issues/10)).
+  Enabling transation is recommend, but only supported for databases that
+  support DDL transactions (PostgreSQL, Microsoft SQL Server and SQLite).
+- Making the code more safe by checking more errors
+  ([#35](https://github.com/go-gormigrate/gormigrate/pull/35)).
+
 ## v1.4.0 - 2019-02-03
 
 - Allow an empty migration list if a `InitSchema` function is defined
