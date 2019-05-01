@@ -44,3 +44,17 @@ tasks:
   test:
     cmds:
       - go test -v -tags {{.DATABASE}}
+
+  docker:
+    cmds:
+      - task: docker:build
+      - task: docker:test
+
+  docker:build:
+    cmds:
+      - docker build -t gormigrate .
+
+  docker:test:
+    cmds:
+      - docker-compose down -v
+      - docker-compose run gormigrate go test -v -tags 'postgresql sqlite mysql sqlserver'

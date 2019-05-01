@@ -183,6 +183,14 @@ go test -tags sqlserver
 go test -tags 'sqlite postgresql mysql'
 ```
 
+Or altenatively, you could use Docker to easily run tests on all databases
+at once. To do that, make sure Docker is installed and running in your machine
+and then run:
+
+```bash
+task docker
+```
+
 [gorm]: http://gorm.io/
 [gormmigrate]: http://doc.gorm.io/database.html#migration
 [gormdatabases]: http://doc.gorm.io/database.html#connecting-to-a-database
