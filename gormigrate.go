@@ -96,6 +96,9 @@ var (
 	// ErrMigrationIDDoesNotExist is returned when migrating or rolling back to a migration ID that
 	// does not exist in the list of migrations
 	ErrMigrationIDDoesNotExist = errors.New("gormigrate: Tried to migrate to an ID that doesn't exist")
+
+	// ErrUnknownPastMigration is returned if a migration exists in the DB that doesn't exist in the code
+	ErrUnknownPastMigration = errors.New("gormigrate: Found migration in DB that does not exist in code")
 )
 
 // New returns a new Gormigrate.
@@ -162,6 +165,14 @@ func (g *Gormigrate) migrate(migrationID string) error {
 
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
+	}
+
+	unknownMigrations, err := g.unknownMigrationsHaveHappened()
+	if err != nil {
+		return err
+	}
+	if unknownMigrations {
+		return ErrUnknownPastMigration
 	}
 
 	if g.initSchema != nil {
@@ -392,6 +403,31 @@ func (g *Gormigrate) canInitializeSchema() (bool, error) {
 		Count(&count).
 		Error
 	return count == 0, err
+}
+
+func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
+	sql := fmt.Sprintf("SELECT %s FROM %s", g.options.IDColumnName, g.options.TableName)
+	rows, err := g.tx.Raw(sql).Rows()
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	validIDSet := make(map[string]bool, len(g.migrations)+1)
+	validIDSet[initSchemaMigrationID] = true
+	for i := 0; i < len(g.migrations); i++ {
+		validIDSet[g.migrations[i].ID] = true
+	}
+
+	for rows.Next() {
+		var pastMigrationID string
+		rows.Scan(&pastMigrationID)
+		if _, ok := validIDSet[pastMigrationID]; !ok {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 func (g *Gormigrate) insertMigration(id string) error {

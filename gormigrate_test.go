@@ -366,6 +366,20 @@ func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 	}, "postgres", "sqlite3", "mssql")
 }
 
+func TestUnexpectedMigration(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, migrations)
+
+		// Migrate without initialisation
+		assert.NoError(t, m.Migrate())
+
+		// Try with fewer migrations. Should fail as we see a migration in the db that
+		// we don't recognise any more
+		n := New(db, DefaultOptions, migrations[:1])
+		assert.Error(t, n.Migrate())
+	})
+}
+
 func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int) {
 	assert.NoError(t, db.Table(tableName).Count(&count).Error)
 	return
