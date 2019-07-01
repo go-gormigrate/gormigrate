@@ -31,6 +31,9 @@ type Options struct {
 	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
 	// Keep in mind that not all databases support DDL commands inside transactions.
 	UseTransaction bool
+	// ValidateDBMigrationIDs will cause migrate to fail if there's unknown migration
+	// IDs in the database
+	ValidateDBMigrationIDs bool
 }
 
 // Migration represents a database migration (a modification to be made on the database).
@@ -73,10 +76,11 @@ func (e *DuplicatedIDError) Error() string {
 var (
 	// DefaultOptions can be used if you don't want to think about options.
 	DefaultOptions = &Options{
-		TableName:      "migrations",
-		IDColumnName:   "id",
-		IDColumnSize:   255,
-		UseTransaction: false,
+		TableName:              "migrations",
+		IDColumnName:           "id",
+		IDColumnSize:           255,
+		UseTransaction:         false,
+		ValidateDBMigrationIDs: false,
 	}
 
 	// ErrRollbackImpossible is returned when trying to rollback a migration
@@ -167,12 +171,14 @@ func (g *Gormigrate) migrate(migrationID string) error {
 		return err
 	}
 
-	unknownMigrations, err := g.unknownMigrationsHaveHappened()
-	if err != nil {
-		return err
-	}
-	if unknownMigrations {
-		return ErrUnknownPastMigration
+	if g.options.ValidateDBMigrationIDs {
+		unknownMigrations, err := g.unknownMigrationsHaveHappened()
+		if err != nil {
+			return err
+		}
+		if unknownMigrations {
+			return ErrUnknownPastMigration
+		}
 	}
 
 	if g.initSchema != nil {
