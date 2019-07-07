@@ -369,7 +369,7 @@ func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 func TestUnexpectedMigrationEnabled(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		options := DefaultOptions
-		options.ValidateDBMigrationIDs = true
+		options.ValidateUnknownMigrations = true
 		m := New(db, options, migrations)
 
 		// Migrate without initialisation
@@ -378,14 +378,14 @@ func TestUnexpectedMigrationEnabled(t *testing.T) {
 		// Try with fewer migrations. Should fail as we see a migration in the db that
 		// we don't recognise any more
 		n := New(db, DefaultOptions, migrations[:1])
-		assert.Error(t, n.Migrate())
+		assert.Equal(t, ErrUnknownPastMigration, n.Migrate())
 	})
 }
 
 func TestUnexpectedMigrationDisabled(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		options := DefaultOptions
-		options.ValidateDBMigrationIDs = false
+		options.ValidateUnknownMigrations = false
 		m := New(db, options, migrations)
 
 		// Migrate without initialisation

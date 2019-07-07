@@ -31,9 +31,9 @@ type Options struct {
 	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
 	// Keep in mind that not all databases support DDL commands inside transactions.
 	UseTransaction bool
-	// ValidateDBMigrationIDs will cause migrate to fail if there's unknown migration
+	// ValidateUnknownMigrations will cause migrate to fail if there's unknown migration
 	// IDs in the database
-	ValidateDBMigrationIDs bool
+	ValidateUnknownMigrations bool
 }
 
 // Migration represents a database migration (a modification to be made on the database).
@@ -76,11 +76,11 @@ func (e *DuplicatedIDError) Error() string {
 var (
 	// DefaultOptions can be used if you don't want to think about options.
 	DefaultOptions = &Options{
-		TableName:              "migrations",
-		IDColumnName:           "id",
-		IDColumnSize:           255,
-		UseTransaction:         false,
-		ValidateDBMigrationIDs: false,
+		TableName:                 "migrations",
+		IDColumnName:              "id",
+		IDColumnSize:              255,
+		UseTransaction:            false,
+		ValidateUnknownMigrations: false,
 	}
 
 	// ErrRollbackImpossible is returned when trying to rollback a migration
@@ -171,7 +171,7 @@ func (g *Gormigrate) migrate(migrationID string) error {
 		return err
 	}
 
-	if g.options.ValidateDBMigrationIDs {
+	if g.options.ValidateUnknownMigrations {
 		unknownMigrations, err := g.unknownMigrationsHaveHappened()
 		if err != nil {
 			return err
@@ -419,15 +419,17 @@ func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
 	}
 	defer rows.Close()
 
-	validIDSet := make(map[string]bool, len(g.migrations)+1)
-	validIDSet[initSchemaMigrationID] = true
-	for i := 0; i < len(g.migrations); i++ {
-		validIDSet[g.migrations[i].ID] = true
+	validIDSet := make(map[string]struct{}, len(g.migrations)+1)
+	validIDSet[initSchemaMigrationID] = struct{}{}
+	for _, migration := range g.migrations {
+		validIDSet[migration.ID] = struct{}{}
 	}
 
 	for rows.Next() {
 		var pastMigrationID string
-		rows.Scan(&pastMigrationID)
+		if err := rows.Scan(&pastMigrationID); err != nil {
+			return false, err
+		}
 		if _, ok := validIDSet[pastMigrationID]; !ok {
 			return true, nil
 		}
