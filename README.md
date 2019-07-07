@@ -149,14 +149,18 @@ This is the options struct, in case you don't want the defaults:
 
 ```go
 type Options struct {
-	// Migrations table name. Default to "migrations".
+	// TableName is the migration table.
 	TableName string
-	// The name of the column that stores the ID of migrations. Defaults to "id".
+	// IDColumnName is the name of column where the migration id will be stored.
 	IDColumnName string
+	// IDColumnSize is the length of the migration id column
+	IDColumnSize int
 	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
 	// Keep in mind that not all databases support DDL commands inside transactions.
-	// Defaults to false.
 	UseTransaction bool
+	// ValidateUnknownMigrations will cause migrate to fail if there's unknown migration
+	// IDs in the database
+	ValidateUnknownMigrations bool
 }
 ```
 

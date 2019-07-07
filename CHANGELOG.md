@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.6.0 - 2019-07-07
+
+- Add option to return an error if the database have unknown migrations
+  (defaults to `false`)
+  ([#37](https://github.com/go-gormigrate/gormigrate/pull/37)).
+
 ## v1.5.0 - 2019-04-29
 
 - Fixed and written tests for transaction handling
