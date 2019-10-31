@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	initSchemaMigrationID = "SCHEMA_INIT"
+	initSchemaMigrationID   = "SCHEMA_INIT"
+	initSchemaMigrationDesc = "SCHEMA_INIT"
 )
 
 // MigrateFunc is the func signature for migrating.
@@ -28,6 +29,10 @@ type Options struct {
 	IDColumnName string
 	// IDColumnSize is the length of the migration id column
 	IDColumnSize int
+	//DescriptionColumnName is the name of column where the migration Description will be stored.
+	DescriptionColumnName string
+	// DescriptionColumnSize is the length of the migration Description column
+	DescriptionColumnSize int
 	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
 	// Keep in mind that not all databases support DDL commands inside transactions.
 	UseTransaction bool
@@ -40,6 +45,8 @@ type Options struct {
 type Migration struct {
 	// ID is the migration identifier. Usually a timestamp like "201601021504".
 	ID string
+	// Description is the migration  idetifier.
+	Description string
 	// Migrate is a function that will br executed while running this migration.
 	Migrate MigrateFunc
 	// Rollback will be executed on rollback. Can be nil.
@@ -79,6 +86,8 @@ var (
 		TableName:                 "migrations",
 		IDColumnName:              "id",
 		IDColumnSize:              255,
+		DescriptionColumnName:     "description",
+		DescriptionColumnSize:     255,
 		UseTransaction:            false,
 		ValidateUnknownMigrations: false,
 	}
@@ -338,12 +347,12 @@ func (g *Gormigrate) runInitSchema() error {
 	if err := g.initSchema(g.tx); err != nil {
 		return err
 	}
-	if err := g.insertMigration(initSchemaMigrationID); err != nil {
+	if err := g.insertMigration(initSchemaMigrationID, initSchemaMigrationDesc); err != nil {
 		return err
 	}
 
 	for _, migration := range g.migrations {
-		if err := g.insertMigration(migration.ID); err != nil {
+		if err := g.insertMigration(migration.ID, migration.Description); err != nil {
 			return err
 		}
 	}
@@ -365,7 +374,7 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 			return err
 		}
 
-		if err := g.insertMigration(migration.ID); err != nil {
+		if err := g.insertMigration(migration.ID, migration.Description); err != nil {
 			return err
 		}
 	}
@@ -377,7 +386,7 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 		return nil
 	}
 
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
+	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY,%s VARCHAR(%d))", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize, g.options.DescriptionColumnName, g.options.DescriptionColumnSize)
 	return g.tx.Exec(sql).Error
 }
 
@@ -438,9 +447,9 @@ func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
 	return false, nil
 }
 
-func (g *Gormigrate) insertMigration(id string) error {
-	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
-	return g.tx.Exec(sql, id).Error
+func (g *Gormigrate) insertMigration(id, desc string) error {
+	sql := fmt.Sprintf("INSERT INTO %s (%s,%s) VALUES (?,?)", g.options.TableName, g.options.IDColumnName, g.options.DescriptionColumnName)
+	return g.tx.Exec(sql, id, desc).Error
 }
 
 func (g *Gormigrate) begin() {
