@@ -209,5 +209,5 @@ task docker
 ```
 
 [gorm]: http://gorm.io/
-[gormmigrate]: http://doc.gorm.io/database.html#migration
-[gormdatabases]: http://doc.gorm.io/database.html#connecting-to-a-database
+[gormmigrate]: https://gorm.io/docs/migration.html
+[gormdatabases]: https://gorm.io/docs/connecting_to_the_database.html
