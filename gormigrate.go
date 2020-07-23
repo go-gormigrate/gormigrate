@@ -20,6 +20,12 @@ type RollbackFunc func(*gorm.DB) error
 // InitSchemaFunc is the func signature for initializing the schema.
 type InitSchemaFunc func(*gorm.DB) error
 
+// this function is called before the migration
+type BeforeMigrateFunc func(m Migration, db *gorm.DB) error
+
+// this function is called after the migration
+type AfterMigrateFunc func(m Migration, db *gorm.DB) error
+
 // Options define options for all migrations.
 type Options struct {
 	// TableName is the migration table.
@@ -34,16 +40,17 @@ type Options struct {
 	// ValidateUnknownMigrations will cause migrate to fail if there's unknown migration
 	// IDs in the database
 	ValidateUnknownMigrations bool
+	// This function is called before the migration
+	BeforeMigrate BeforeMigrateFunc
+	// This function is called after the migration
+	AfterMigrate AfterMigrateFunc
 }
 
 // Migration represents a database migration (a modification to be made on the database).
-type Migration struct {
-	// ID is the migration identifier. Usually a timestamp like "201601021504".
-	ID string
-	// Migrate is a function that will br executed while running this migration.
-	Migrate MigrateFunc
-	// Rollback will be executed on rollback. Can be nil.
-	Rollback RollbackFunc
+type Migration interface {
+	GetID() string
+	Migrate(*gorm.DB) error
+	Rollback(*gorm.DB) error
 }
 
 // Gormigrate represents a collection of all migrations of a database schema.
@@ -51,7 +58,7 @@ type Gormigrate struct {
 	db         *gorm.DB
 	tx         *gorm.DB
 	options    *Options
-	migrations []*Migration
+	migrations []Migration
 	initSchema InitSchemaFunc
 }
 
@@ -106,7 +113,7 @@ var (
 )
 
 // New returns a new Gormigrate.
-func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
+func New(db *gorm.DB, options *Options, migrations []Migration) *Gormigrate {
 	if options.TableName == "" {
 		options.TableName = DefaultOptions.TableName
 	}
@@ -138,7 +145,7 @@ func (g *Gormigrate) Migrate() error {
 	}
 	var targetMigrationID string
 	if len(g.migrations) > 0 {
-		targetMigrationID = g.migrations[len(g.migrations)-1].ID
+		targetMigrationID = g.migrations[len(g.migrations)-1].GetID()
 	}
 	return g.migrate(targetMigrationID)
 }
@@ -196,9 +203,9 @@ func (g *Gormigrate) migrate(migrationID string) error {
 
 	for _, migration := range g.migrations {
 		if err := g.runMigration(migration); err != nil {
-			return err
+			return fmt.Errorf("Error running migration %s: %s", migration.GetID(), err)
 		}
-		if migrationID != "" && migration.ID == migrationID {
+		if migrationID != "" && migration.GetID() == migrationID {
 			break
 		}
 	}
@@ -215,8 +222,8 @@ func (g *Gormigrate) hasMigrations() bool {
 // For now there's only have one reserved ID, but there may be more in the future.
 func (g *Gormigrate) checkReservedID() error {
 	for _, m := range g.migrations {
-		if m.ID == initSchemaMigrationID {
-			return &ReservedIDError{ID: m.ID}
+		if m.GetID() == initSchemaMigrationID {
+			return &ReservedIDError{ID: m.GetID()}
 		}
 	}
 	return nil
@@ -225,17 +232,17 @@ func (g *Gormigrate) checkReservedID() error {
 func (g *Gormigrate) checkDuplicatedID() error {
 	lookup := make(map[string]struct{}, len(g.migrations))
 	for _, m := range g.migrations {
-		if _, ok := lookup[m.ID]; ok {
-			return &DuplicatedIDError{ID: m.ID}
+		if _, ok := lookup[m.GetID()]; ok {
+			return &DuplicatedIDError{ID: m.GetID()}
 		}
-		lookup[m.ID] = struct{}{}
+		lookup[m.GetID()] = struct{}{}
 	}
 	return nil
 }
 
 func (g *Gormigrate) checkIDExist(migrationID string) error {
 	for _, migrate := range g.migrations {
-		if migrate.ID == migrationID {
+		if migrate.GetID() == migrationID {
 			return nil
 		}
 	}
@@ -257,7 +264,7 @@ func (g *Gormigrate) RollbackLast() error {
 	}
 
 	if err := g.rollbackMigration(lastRunMigration); err != nil {
-		return err
+		return fmt.Errorf("Error rolling back migration %s: %s", lastRunMigration.GetID(), err)
 	}
 	return g.commit()
 }
@@ -278,7 +285,7 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
-		if migration.ID == migrationID {
+		if migration.GetID() == migrationID {
 			break
 		}
 		migrationRan, err := g.migrationRan(migration)
@@ -287,14 +294,14 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 		}
 		if migrationRan {
 			if err := g.rollbackMigration(migration); err != nil {
-				return err
+				return fmt.Errorf("Error rolling back migration %s: %s", migration.GetID(), err)
 			}
 		}
 	}
 	return g.commit()
 }
 
-func (g *Gormigrate) getLastRunMigration() (*Migration, error) {
+func (g *Gormigrate) getLastRunMigration() (Migration, error) {
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
 
@@ -311,27 +318,23 @@ func (g *Gormigrate) getLastRunMigration() (*Migration, error) {
 }
 
 // RollbackMigration undo a migration.
-func (g *Gormigrate) RollbackMigration(m *Migration) error {
+func (g *Gormigrate) RollbackMigration(m Migration) error {
 	g.begin()
 	defer g.rollback()
 
 	if err := g.rollbackMigration(m); err != nil {
-		return err
+		return fmt.Errorf("Error rolling back migration %s: %s", m.GetID(), err)
 	}
 	return g.commit()
 }
 
-func (g *Gormigrate) rollbackMigration(m *Migration) error {
-	if m.Rollback == nil {
-		return ErrRollbackImpossible
-	}
-
+func (g *Gormigrate) rollbackMigration(m Migration) error {
 	if err := m.Rollback(g.tx); err != nil {
 		return err
 	}
 
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
-	return g.tx.Exec(sql, m.ID).Error
+	return g.tx.Exec(sql, m.GetID()).Error
 }
 
 func (g *Gormigrate) runInitSchema() error {
@@ -343,7 +346,7 @@ func (g *Gormigrate) runInitSchema() error {
 	}
 
 	for _, migration := range g.migrations {
-		if err := g.insertMigration(migration.ID); err != nil {
+		if err := g.insertMigration(migration.GetID()); err != nil {
 			return err
 		}
 	}
@@ -351,8 +354,8 @@ func (g *Gormigrate) runInitSchema() error {
 	return nil
 }
 
-func (g *Gormigrate) runMigration(migration *Migration) error {
-	if len(migration.ID) == 0 {
+func (g *Gormigrate) runMigration(migration Migration) error {
+	if len(migration.GetID()) == 0 {
 		return ErrMissingID
 	}
 
@@ -361,12 +364,26 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 		return err
 	}
 	if !migrationRan {
+		if g.options.BeforeMigrate != nil {
+			err := g.options.BeforeMigrate(migration, g.db)
+			if err != nil {
+				return fmt.Errorf("Error while running before migration for migration %s: %s", migration.GetID(), err)
+			}
+		}
+
 		if err := migration.Migrate(g.tx); err != nil {
 			return err
 		}
 
-		if err := g.insertMigration(migration.ID); err != nil {
+		if err := g.insertMigration(migration.GetID()); err != nil {
 			return err
+		}
+
+		if g.options.AfterMigrate != nil {
+			err := g.options.AfterMigrate(migration, g.db)
+			if err != nil {
+				return fmt.Errorf("Error while running after migration for migration %s: %s", migration.GetID(), err)
+			}
 		}
 	}
 	return nil
@@ -381,11 +398,11 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 	return g.tx.Exec(sql).Error
 }
 
-func (g *Gormigrate) migrationRan(m *Migration) (bool, error) {
+func (g *Gormigrate) migrationRan(m Migration) (bool, error) {
 	var count int
 	err := g.tx.
 		Table(g.options.TableName).
-		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.ID).
+		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.GetID()).
 		Count(&count).
 		Error
 	return count > 0, err
@@ -394,7 +411,8 @@ func (g *Gormigrate) migrationRan(m *Migration) (bool, error) {
 // The schema can be initialised only if it hasn't been initialised yet
 // and no other migration has been applied already.
 func (g *Gormigrate) canInitializeSchema() (bool, error) {
-	migrationRan, err := g.migrationRan(&Migration{ID: initSchemaMigrationID})
+	var m Migration
+	migrationRan, err := g.migrationRan(m)
 	if err != nil {
 		return false, err
 	}
@@ -422,7 +440,7 @@ func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
 	validIDSet := make(map[string]struct{}, len(g.migrations)+1)
 	validIDSet[initSchemaMigrationID] = struct{}{}
 	for _, migration := range g.migrations {
-		validIDSet[migration.ID] = struct{}{}
+		validIDSet[migration.GetID()] = struct{}{}
 	}
 
 	for rows.Next() {

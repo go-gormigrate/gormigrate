@@ -19,47 +19,65 @@ type database struct {
 	connEnv string
 }
 
-var migrations = []*Migration{
-	{
-		ID: "201608301400",
-		Migrate: func(tx *gorm.DB) error {
+type migration struct {
+	id       string
+	migrate  MigrateFunc
+	rollback RollbackFunc
+}
+
+func (m *migration) GetID() string {
+	return m.id
+}
+
+func (m *migration) Migrate(tx *gorm.DB) error {
+	return m.migrate(tx)
+}
+
+func (m *migration) Rollback(tx *gorm.DB) error {
+	return m.rollback(tx)
+}
+
+var migrations = []Migration{
+	&migration{
+		id: "201608301400",
+		migrate: func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&Person{}).Error
 		},
-		Rollback: func(tx *gorm.DB) error {
+		rollback: func(tx *gorm.DB) error {
 			return tx.DropTable("people").Error
 		},
 	},
-	{
-		ID: "201608301430",
-		Migrate: func(tx *gorm.DB) error {
+	&migration{
+		id: "201608301430",
+		migrate: func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&Pet{}).Error
 		},
-		Rollback: func(tx *gorm.DB) error {
+		rollback: func(tx *gorm.DB) error {
 			return tx.DropTable("pets").Error
 		},
 	},
 }
 
-var extendedMigrations = append(migrations, &Migration{
-	ID: "201807221927",
-	Migrate: func(tx *gorm.DB) error {
+var extendedMigrations = append(migrations, &migration{
+	id: "201807221927",
+	migrate: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&Book{}).Error
 	},
-	Rollback: func(tx *gorm.DB) error {
+	rollback: func(tx *gorm.DB) error {
 		return tx.DropTable("books").Error
 	},
 })
 
-var failingMigration = []*Migration{
-	{
-		ID: "201904231300",
-		Migrate: func(tx *gorm.DB) error {
+var failingMigration = []Migration{
+	&migration{
+		id: "201904231300",
+		migrate: func(tx *gorm.DB) error {
 			if err := tx.AutoMigrate(&Book{}).Error; err != nil {
 				return err
 			}
 			return errors.New("this transaction should be rolled back")
 		},
-		Rollback: func(tx *gorm.DB) error {
+		rollback: func(tx *gorm.DB) error {
 			return nil
 		},
 	},
@@ -145,7 +163,7 @@ func TestRollbackTo(t *testing.T) {
 // then initSchema is executed.
 func TestInitSchemaNoMigrations(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, []*Migration{})
+		m := New(db, DefaultOptions, []Migration{})
 		m.InitSchema(func(tx *gorm.DB) error {
 			if err := tx.AutoMigrate(&Person{}).Error; err != nil {
 				return err
@@ -191,9 +209,9 @@ func TestInitSchemaAlreadyInitialised(t *testing.T) {
 	}
 
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, []*Migration{})
+		m := New(db, DefaultOptions, []Migration{})
 
-		// Migrate with empty initialisation
+		// migrate with empty initialisation
 		m.InitSchema(func(tx *gorm.DB) error {
 			return nil
 		})
@@ -255,9 +273,9 @@ func TestMigrationIDDoesNotExist(t *testing.T) {
 
 func TestMissingID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		migrationsMissingID := []*Migration{
-			{
-				Migrate: func(tx *gorm.DB) error {
+		migrationsMissingID := []Migration{
+			&migration{
+				migrate: func(tx *gorm.DB) error {
 					return nil
 				},
 			},
@@ -270,10 +288,10 @@ func TestMissingID(t *testing.T) {
 
 func TestReservedID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		migrationsReservedID := []*Migration{
-			{
-				ID: "SCHEMA_INIT",
-				Migrate: func(tx *gorm.DB) error {
+		migrationsReservedID := []Migration{
+			&migration{
+				id: "SCHEMA_INIT",
+				migrate: func(tx *gorm.DB) error {
 					return nil
 				},
 			},
@@ -287,16 +305,16 @@ func TestReservedID(t *testing.T) {
 
 func TestDuplicatedID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		migrationsDuplicatedID := []*Migration{
-			{
-				ID: "201705061500",
-				Migrate: func(tx *gorm.DB) error {
+		migrationsDuplicatedID := []Migration{
+			&migration{
+				id: "201705061500",
+				migrate: func(tx *gorm.DB) error {
 					return nil
 				},
 			},
-			{
-				ID: "201705061500",
-				Migrate: func(tx *gorm.DB) error {
+			&migration{
+				id: "201705061500",
+				migrate: func(tx *gorm.DB) error {
 					return nil
 				},
 			},
@@ -311,7 +329,7 @@ func TestDuplicatedID(t *testing.T) {
 func TestEmptyMigrationList(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		t.Run("with empty list", func(t *testing.T) {
-			m := New(db, DefaultOptions, []*Migration{})
+			m := New(db, DefaultOptions, []Migration{})
 			err := m.Migrate()
 			assert.Equal(t, ErrNoMigrationDefined, err)
 		})
