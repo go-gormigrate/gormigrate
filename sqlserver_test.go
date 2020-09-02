@@ -3,12 +3,13 @@
 package gormigrate
 
 import (
-	_ "github.com/jinzhu/gorm/dialects/mssql"
+	"gorm.io/driver/sqlserver"
+	"os"
 )
 
 func init() {
 	databases = append(databases, database{
-		name:    "mssql",
-		connEnv: "SQLSERVER_CONN_STRING",
+		dialect: "mssql",
+		driver:  sqlserver.Open(os.Getenv("SQLSERVER_CONN_STRING")),
 	})
 }

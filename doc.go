@@ -11,7 +11,7 @@
 //      "log"
 //
 //      "github.com/go-gormigrate/gormigrate"
-//      "github.com/jinzhu/gorm"
+//      "gorm.io/gorm"
 //      _ "github.com/jinzhu/gorm/dialects/sqlite"
 //  )
 //

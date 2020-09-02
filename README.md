@@ -33,7 +33,7 @@ import (
 	"log"
 
 	"gopkg.in/gormigrate.v1"
-	"github.com/jinzhu/gorm"
+	"gorm.io/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
 

@@ -3,12 +3,13 @@
 package gormigrate
 
 import (
-	_ "github.com/jinzhu/gorm/dialects/postgres"
+	"gorm.io/driver/postgres"
+	"os"
 )
 
 func init() {
 	databases = append(databases, database{
-		name:    "postgres",
-		connEnv: "PG_CONN_STRING",
+		dialect: "postgres",
+		driver:  postgres.Open(os.Getenv("PG_CONN_STRING")),
 	})
 }
