@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.0.0 - 2020-09-05
+
+- Make it compatible with Gorm v2, which uses a new import path and has
+  breaking changes on its API
+  ([#45](https://github.com/go-gormigrate/gormigrate/issues/45), [#46](https://github.com/go-gormigrate/gormigrate/pull/46)).
+
 ## v1.6.0 - 2019-07-07
 
 - Add option to return an error if the database have unknown migrations
