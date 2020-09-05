@@ -1,6 +1,6 @@
 version: '{build}'
 
-clone_folder: C:\GOPATH\src\gopkg.in\gormigrate.v1
+clone_folder: C:\GOPATH\src\github.com\go-gormigrate\gormigrate
 
 build: false
 deploy: false

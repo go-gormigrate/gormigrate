@@ -9,6 +9,14 @@ Gormigrate is a minimalistic migration helper for [Gorm][gorm].
 Gorm already has useful [migrate functions][gormmigrate], just misses
 proper schema versioning and migration rollback support.
 
+> IMPORTANT: If you need support to Gorm v1 (which uses
+> `github.com/jinzhu/gorm` as its import path), please import Gormigrate by
+> using the `gopkg.in/gormigrate.v1` import path.
+>
+> The current Gorm version (v2) is supported by using the
+> `github.com/go-gormigrate/gormigrate/v2` import path as described in the
+> documentation below.
+
 ## Supported databases
 
 It supports any of the [databases Gorm supports][gormdatabases]:
@@ -18,12 +26,6 @@ It supports any of the [databases Gorm supports][gormdatabases]:
 - SQLite
 - Microsoft SQL Server
 
-## Installing
-
-```bash
-go get -u gopkg.in/gormigrate.v1
-```
-
 ## Usage
 
 ```go
@@ -32,7 +34,7 @@ package main
 import (
 	"log"
 
-	"gopkg.in/gormigrate.v1"
+	"github.com/go-gormigrate/gormigrate/v2"
 	"gorm.io/gorm"
 	_ "github.com/jinzhu/gorm/dialects/sqlite"
 )
@@ -56,10 +58,10 @@ func main() {
 					gorm.Model
 					Name string
 				}
-				return tx.AutoMigrate(&Person{}).Error
+				return tx.AutoMigrate(&Person{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return tx.DropTable("people").Error
+				return tx.Migrator().DropTable("people")
 			},
 		},
 		// add age column to persons
@@ -70,10 +72,10 @@ func main() {
 				type Person struct {
 					Age int
 				}
-				return tx.AutoMigrate(&Person{}).Error
+				return tx.AutoMigrate(&Person{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return tx.Table("people").DropColumn("age").Error
+				return tx.Migrator().DropColumn("people", "age")
 			},
 		},
 		// add pets table
@@ -85,10 +87,10 @@ func main() {
 					Name     string
 					PersonID int
 				}
-				return tx.AutoMigrate(&Pet{}).Error
+				return tx.AutoMigrate(&Pet{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return tx.DropTable("pets").Error
+				return tx.Migrator().DropTable("pets")
 			},
 		},
 	})
@@ -130,12 +132,12 @@ m.InitSchema(func(tx *gorm.DB) error {
 		&Person{},
 		&Pet{},
 		// all other tables of you app
-	).Error
+	)
 	if err != nil {
 		return err
 	}
 
-	if err := tx.Model(Pet{}).AddForeignKey("person_id", "people (id)", "RESTRICT", "RESTRICT").Error; err != nil {
+  if err := tx.Exec("ALTER TABLE pets ADD CONSTRAINT fk_pets_people FOREIGN KEY (person_id) REFERENCES people (id)").Error; err != nil {
 		return err
 	}
 	// all other foreign keys...
