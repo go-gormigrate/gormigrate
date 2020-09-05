@@ -3,8 +3,9 @@
 package gormigrate
 
 import (
-	"gorm.io/driver/sqlite"
 	"os"
+
+	"gorm.io/driver/sqlite"
 )
 
 func init() {

@@ -3,8 +3,9 @@
 package gormigrate
 
 import (
-	"gorm.io/driver/sqlserver"
 	"os"
+
+	"gorm.io/driver/sqlserver"
 )
 
 func init() {

@@ -3,8 +3,9 @@
 package gormigrate
 
 import (
-	"gorm.io/driver/mysql"
 	"os"
+
+	"gorm.io/driver/mysql"
 )
 
 func init() {

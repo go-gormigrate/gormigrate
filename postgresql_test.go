@@ -3,8 +3,9 @@
 package gormigrate
 
 import (
-	"gorm.io/driver/postgres"
 	"os"
+
+	"gorm.io/driver/postgres"
 )
 
 func init() {
