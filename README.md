@@ -1,8 +1,6 @@
 # Gormigrate
 
-[![GoDoc](https://godoc.org/gopkg.in/gormigrate.v1?status.svg)](https://godoc.org/gopkg.in/gormigrate.v1)
-[![Go Report Card](https://goreportcard.com/badge/gopkg.in/gormigrate.v1)](https://goreportcard.com/report/gopkg.in/gormigrate.v1)
-[![Build Status](https://travis-ci.org/go-gormigrate/gormigrate.svg?branch=master)](https://travis-ci.org/go-gormigrate/gormigrate)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/go-gormigrate/gormigrate/v2?tab=doc)](https://pkg.go.dev/github.com/go-gormigrate/gormigrate/v2?tab=doc)
 [![Build status](https://ci.appveyor.com/api/projects/status/89e414sklbwefyyp?svg=true)](https://ci.appveyor.com/project/andreynering/gormigrate)
 
 Gormigrate is a minimalistic migration helper for [Gorm][gorm].
