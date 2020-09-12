@@ -135,7 +135,7 @@ m.InitSchema(func(tx *gorm.DB) error {
 		return err
 	}
 
-  if err := tx.Exec("ALTER TABLE pets ADD CONSTRAINT fk_pets_people FOREIGN KEY (person_id) REFERENCES people (id)").Error; err != nil {
+	if err := tx.Exec("ALTER TABLE pets ADD CONSTRAINT fk_pets_people FOREIGN KEY (person_id) REFERENCES people (id)").Error; err != nil {
 		return err
 	}
 	// all other foreign keys...
