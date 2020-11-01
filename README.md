@@ -173,7 +173,7 @@ if you plan to scale.
 
 Be aware that Gormigrate has no builtin lock mechanism, so if you're running
 it automatically and have a distributed setup (i.e. more than one executable
-running running at the same time), you might want to use a
+running at the same time), you might want to use a
 [distributed lock/mutex mechanism](https://redis.io/topics/distlock) to
 prevent race conditions while running migrations.
 
