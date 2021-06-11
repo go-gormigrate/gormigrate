@@ -3,6 +3,11 @@ package gormigrate
 import (
 	"errors"
 	"fmt"
+	"gorm.io/gorm/clause"
+	"reflect"
+	"strconv"
+	"strings"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -34,16 +39,73 @@ type Options struct {
 	// ValidateUnknownMigrations will cause migrate to fail if there's unknown migration
 	// IDs in the database
 	ValidateUnknownMigrations bool
+	// DependencyColumnName is the name of column where stores dependency id
+	DependencyColumnName string
 }
 
 // Migration represents a database migration (a modification to be made on the database).
 type Migration struct {
-	// ID is the migration identifier. Usually a timestamp like "201601021504".
-	ID string
+	ID        uint `gorm:"primarykey"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+
+	// MigrationID is the migration identifier. Usually a timestamp like "201601021504".
+	MigrationID string
 	// Migrate is a function that will br executed while running this migration.
-	Migrate MigrateFunc
+	Migrate MigrateFunc `gorm:"-"`
 	// Rollback will be executed on rollback. Can be nil.
-	Rollback RollbackFunc
+	Rollback RollbackFunc `gorm:"-"`
+	// Dependencies indicates which migrations should be run before
+	Dependencies []*Migration `gorm:"foreignKey:DependencyID;references:MigrationID"`
+	// DependencyID is the association id
+	DependencyID *string
+}
+
+// Deprecated: do not use it
+func (m *Migration) WithOptions(options *Options) interface{} {
+	return m
+	// Todo: consider json tag
+
+	t := reflect.TypeOf(Migration{})
+	var fieldMigrationID, fieldDependencies reflect.StructField
+	if f, ok := t.FieldByName("MigrationID"); ok {
+		fieldMigrationID = f
+		s := fieldMigrationID.Tag.Get("gorm")
+		s += fmt.Sprintf(",column:%s,size:%v", options.IDColumnName, options.IDColumnSize)
+		fieldMigrationID.Tag = reflect.StructTag(fmt.Sprintf("gorm:%s", strconv.Quote(s)))
+	}
+
+	if f, ok := t.FieldByName("Dependencies"); ok {
+		fieldDependencies = f
+		s := fieldDependencies.Tag.Get("gorm")
+		s += fmt.Sprintf(",column:%s,size:%v", options.DependencyColumnName, options.IDColumnSize)
+		fieldDependencies.Tag = reflect.StructTag(fmt.Sprintf("gorm:%s", strconv.Quote(s)))
+
+	}
+
+	// stores table name implicitly on first field so it can be read easily
+	field0 := t.Field(0)
+	tbName := string(field0.Tag)
+	tbName += " tname:" + strings.TrimSpace(options.TableName)
+	field0.Tag = reflect.StructTag(tbName)
+
+	fields := []reflect.StructField{field0}
+
+	for i := 1; i < t.NumField(); i++ {
+		if i == fieldMigrationID.Index[0] {
+			fields = append(fields, fieldMigrationID)
+		} else if i == fieldDependencies.Index[0] {
+			fields = append(fields, fieldDependencies)
+		} else {
+			fields = append(fields, t.Field(i))
+		}
+	}
+
+	v := reflect.New(reflect.StructOf(fields)).Elem()
+	for i := 0; i < len(fields); i++ {
+		v.Field(i).Set(reflect.ValueOf(*m).Field(i))
+	}
+	return (&v).Interface()
 }
 
 // Gormigrate represents a collection of all migrations of a database schema.
@@ -61,7 +123,7 @@ type ReservedIDError struct {
 }
 
 func (e *ReservedIDError) Error() string {
-	return fmt.Sprintf(`gormigrate: Reserved migration ID: "%s"`, e.ID)
+	return fmt.Sprintf(`gormigrate: Reserved migration MigrationID: "%s"`, e.ID)
 }
 
 // DuplicatedIDError is returned when more than one migration have the same ID
@@ -70,17 +132,28 @@ type DuplicatedIDError struct {
 }
 
 func (e *DuplicatedIDError) Error() string {
-	return fmt.Sprintf(`gormigrate: Duplicated migration ID: "%s"`, e.ID)
+	return fmt.Sprintf(`gormigrate: Duplicated migration MigrationID: "%s"`, e.ID)
 }
+
+func DummyMigration(id string) *Migration {
+	return &Migration{MigrationID: id, Migrate: dummyMigration}
+}
+
+var (
+	dummyMigration = func(db *gorm.DB) error {
+		return nil
+	}
+)
 
 var (
 	// DefaultOptions can be used if you don't want to think about options.
 	DefaultOptions = &Options{
 		TableName:                 "migrations",
-		IDColumnName:              "id",
+		IDColumnName:              "migration_id",
 		IDColumnSize:              255,
 		UseTransaction:            false,
 		ValidateUnknownMigrations: false,
+		DependencyColumnName:      "dependency_id",
 	}
 
 	// ErrRollbackImpossible is returned when trying to rollback a migration
@@ -90,8 +163,8 @@ var (
 	// ErrNoMigrationDefined is returned when no migration is defined.
 	ErrNoMigrationDefined = errors.New("gormigrate: No migration defined")
 
-	// ErrMissingID is returned when the ID od migration is equal to ""
-	ErrMissingID = errors.New("gormigrate: Missing ID in migration")
+	// ErrMissingID is returned when the MigrationID od migration is equal to ""
+	ErrMissingID = errors.New("gormigrate: Missing MigrationID in migration")
 
 	// ErrNoRunMigration is returned when any run migration was found while
 	// running RollbackLast
@@ -99,7 +172,7 @@ var (
 
 	// ErrMigrationIDDoesNotExist is returned when migrating or rolling back to a migration ID that
 	// does not exist in the list of migrations
-	ErrMigrationIDDoesNotExist = errors.New("gormigrate: Tried to migrate to an ID that doesn't exist")
+	ErrMigrationIDDoesNotExist = errors.New("gormigrate: Tried to migrate to an MigrationID that doesn't exist")
 
 	// ErrUnknownPastMigration is returned if a migration exists in the DB that doesn't exist in the code
 	ErrUnknownPastMigration = errors.New("gormigrate: Found migration in DB that does not exist in code")
@@ -133,25 +206,6 @@ func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 
 // Migrate executes all migrations that did not run yet.
 func (g *Gormigrate) Migrate() error {
-	if !g.hasMigrations() {
-		return ErrNoMigrationDefined
-	}
-	var targetMigrationID string
-	if len(g.migrations) > 0 {
-		targetMigrationID = g.migrations[len(g.migrations)-1].ID
-	}
-	return g.migrate(targetMigrationID)
-}
-
-// MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
-func (g *Gormigrate) MigrateTo(migrationID string) error {
-	if err := g.checkIDExist(migrationID); err != nil {
-		return err
-	}
-	return g.migrate(migrationID)
-}
-
-func (g *Gormigrate) migrate(migrationID string) error {
 	if !g.hasMigrations() {
 		return ErrNoMigrationDefined
 	}
@@ -194,11 +248,28 @@ func (g *Gormigrate) migrate(migrationID string) error {
 		}
 	}
 
+	g.resolveDependency()
+	var targetMigrationID string
+	if len(g.migrations) > 0 {
+		targetMigrationID = g.migrations[len(g.migrations)-1].MigrationID
+	}
+	return g.migrate(targetMigrationID)
+}
+
+// MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
+func (g *Gormigrate) MigrateTo(migrationID string) error {
+	if err := g.checkIDExist(migrationID); err != nil {
+		return err
+	}
+	return g.migrate(migrationID)
+}
+
+func (g *Gormigrate) migrate(migrationID string) error {
 	for _, migration := range g.migrations {
 		if err := g.runMigration(migration); err != nil {
 			return err
 		}
-		if migrationID != "" && migration.ID == migrationID {
+		if migrationID != "" && migration.MigrationID == migrationID {
 			break
 		}
 	}
@@ -215,8 +286,8 @@ func (g *Gormigrate) hasMigrations() bool {
 // For now there's only have one reserved ID, but there may be more in the future.
 func (g *Gormigrate) checkReservedID() error {
 	for _, m := range g.migrations {
-		if m.ID == initSchemaMigrationID {
-			return &ReservedIDError{ID: m.ID}
+		if m.MigrationID == initSchemaMigrationID {
+			return &ReservedIDError{ID: m.MigrationID}
 		}
 	}
 	return nil
@@ -225,17 +296,17 @@ func (g *Gormigrate) checkReservedID() error {
 func (g *Gormigrate) checkDuplicatedID() error {
 	lookup := make(map[string]struct{}, len(g.migrations))
 	for _, m := range g.migrations {
-		if _, ok := lookup[m.ID]; ok {
-			return &DuplicatedIDError{ID: m.ID}
+		if _, ok := lookup[m.MigrationID]; ok {
+			return &DuplicatedIDError{ID: m.MigrationID}
 		}
-		lookup[m.ID] = struct{}{}
+		lookup[m.MigrationID] = struct{}{}
 	}
 	return nil
 }
 
 func (g *Gormigrate) checkIDExist(migrationID string) error {
 	for _, migrate := range g.migrations {
-		if migrate.ID == migrationID {
+		if migrate.MigrationID == migrationID {
 			return nil
 		}
 	}
@@ -278,7 +349,7 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
-		if migration.ID == migrationID {
+		if migration.MigrationID == migrationID {
 			break
 		}
 		migrationRan, err := g.migrationRan(migration)
@@ -331,7 +402,7 @@ func (g *Gormigrate) rollbackMigration(m *Migration) error {
 	}
 
 	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
-	return g.tx.Exec(sql, m.ID).Error
+	return g.tx.Exec(sql, m.MigrationID).Error
 }
 
 func (g *Gormigrate) runInitSchema() error {
@@ -343,7 +414,7 @@ func (g *Gormigrate) runInitSchema() error {
 	}
 
 	for _, migration := range g.migrations {
-		if err := g.insertMigration(migration.ID); err != nil {
+		if err := g.insertMigrationWithDependency(migration); err != nil {
 			return err
 		}
 	}
@@ -352,7 +423,7 @@ func (g *Gormigrate) runInitSchema() error {
 }
 
 func (g *Gormigrate) runMigration(migration *Migration) error {
-	if len(migration.ID) == 0 {
+	if len(migration.MigrationID) == 0 {
 		return ErrMissingID
 	}
 
@@ -365,36 +436,40 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 			return err
 		}
 
-		if err := g.insertMigration(migration.ID); err != nil {
+		if err := g.insertMigrationWithDependency(migration); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (g *Gormigrate) createMigrationTableIfNotExists() error {
-	if g.tx.Migrator().HasTable(g.options.TableName) {
-		return nil
+func (g *Gormigrate) createMigrationTableIfNotExists() (err error) {
+	g.tx.DisableForeignKeyConstraintWhenMigrating = true
+	if g.tx.Migrator().HasTable(DefaultOptions.TableName) {
+		if g.options.TableName != DefaultOptions.TableName {
+			err = g.tx.Migrator().RenameTable(DefaultOptions.TableName, g.options.TableName)
+		}
+	} else {
+		err = g.tx.Table(g.options.TableName).Migrator().CreateTable(Migration{})
 	}
-
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
-	return g.tx.Exec(sql).Error
+	return err
 }
 
 func (g *Gormigrate) migrationRan(m *Migration) (bool, error) {
 	var count int64
 	err := g.tx.
 		Table(g.options.TableName).
-		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.ID).
+		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.MigrationID).
 		Count(&count).
 		Error
+	// ignore dependency since it has been stored
 	return count > 0, err
 }
 
 // The schema can be initialised only if it hasn't been initialised yet
 // and no other migration has been applied already.
 func (g *Gormigrate) canInitializeSchema() (bool, error) {
-	migrationRan, err := g.migrationRan(&Migration{ID: initSchemaMigrationID})
+	migrationRan, err := g.migrationRan(&Migration{MigrationID: initSchemaMigrationID})
 	if err != nil {
 		return false, err
 	}
@@ -402,7 +477,7 @@ func (g *Gormigrate) canInitializeSchema() (bool, error) {
 		return false, nil
 	}
 
-	// If the ID doesn't exist, we also want the list of migrations to be empty
+	// If the MigrationID doesn't exist, we also want the list of migrations to be empty
 	var count int64
 	err = g.tx.
 		Table(g.options.TableName).
@@ -422,7 +497,7 @@ func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
 	validIDSet := make(map[string]struct{}, len(g.migrations)+1)
 	validIDSet[initSchemaMigrationID] = struct{}{}
 	for _, migration := range g.migrations {
-		validIDSet[migration.ID] = struct{}{}
+		validIDSet[migration.MigrationID] = struct{}{}
 	}
 
 	for rows.Next() {
@@ -441,6 +516,14 @@ func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
 func (g *Gormigrate) insertMigration(id string) error {
 	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
 	return g.tx.Exec(sql, id).Error
+}
+
+func (g *Gormigrate) insertMigrationWithDependency(m *Migration) error {
+	return g.tx.Table(g.options.TableName).Model(m).
+		Clauses(clause.OnConflict{
+			UpdateAll: true,
+		}).
+		Create(m).Error
 }
 
 func (g *Gormigrate) begin() {

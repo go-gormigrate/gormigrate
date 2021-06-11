@@ -20,7 +20,7 @@ type database struct {
 
 var migrations = []*Migration{
 	{
-		ID: "201608301400",
+		MigrationID: "201608301400",
 		Migrate: func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&Person{})
 		},
@@ -29,7 +29,7 @@ var migrations = []*Migration{
 		},
 	},
 	{
-		ID: "201608301430",
+		MigrationID: "201608301430",
 		Migrate: func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&Pet{})
 		},
@@ -40,7 +40,7 @@ var migrations = []*Migration{
 }
 
 var extendedMigrations = append(migrations, &Migration{
-	ID: "201807221927",
+	MigrationID: "201807221927",
 	Migrate: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&Book{})
 	},
@@ -51,7 +51,7 @@ var extendedMigrations = append(migrations, &Migration{
 
 var failingMigration = []*Migration{
 	{
-		ID: "201904231300",
+		MigrationID: "201904231300",
 		Migrate: func(tx *gorm.DB) error {
 			if err := tx.AutoMigrate(&Book{}); err != nil {
 				return err
@@ -271,7 +271,7 @@ func TestReservedID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		migrationsReservedID := []*Migration{
 			{
-				ID: "SCHEMA_INIT",
+				MigrationID: "SCHEMA_INIT",
 				Migrate: func(tx *gorm.DB) error {
 					return nil
 				},
@@ -288,13 +288,13 @@ func TestDuplicatedID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		migrationsDuplicatedID := []*Migration{
 			{
-				ID: "201705061500",
+				MigrationID: "201705061500",
 				Migrate: func(tx *gorm.DB) error {
 					return nil
 				},
 			},
 			{
-				ID: "201705061500",
+				MigrationID: "201705061500",
 				Migrate: func(tx *gorm.DB) error {
 					return nil
 				},
