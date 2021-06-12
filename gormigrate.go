@@ -451,12 +451,13 @@ func (g *Gormigrate) migrationRan(m *Migration) (bool, error) {
 	var count int64
 	err := g.tx.Transaction(func(tx *gorm.DB) error {
 		return tx.Table(g.options.TableName).
-			Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.MigrationID).
-			Count(&count).
-			Error
+			Where(
+				tx.Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.MigrationID),
+			).Or(
+			tx.Where(fmt.Sprintf("%s = ?", g.options.DependencyColumnName), m.MigrationID),
+		).Count(&count).Error
 	})
 
-	// ignore dependency since it has been stored
 	return count > 0, err
 }
 
