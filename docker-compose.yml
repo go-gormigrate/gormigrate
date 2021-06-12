@@ -3,6 +3,9 @@ version: '3'
 services:
   gormigrate:
     image: gormigrate
+    build:
+      dockerfile: Dockerfile
+      context: .
     depends_on:
       - postgresql
       - mysql
@@ -11,7 +14,7 @@ services:
       PGPASSWORD: postgres
       PG_CONN_STRING: host=postgresql user=postgres dbname=gormigrate_test port=5432 sslmode=disable
 
-      MYSQL_CONN_STRING: root:mysql@tcp(mysql)/gormigrate_test?multiStatements=true
+      MYSQL_CONN_STRING: root:mysql@tcp(mysql)/gormigrate_test?multiStatements=true&charset=utf8&parseTime=true
 
       SQLSERVER_CONN_STRING: server=sqlserver;database=master;user id=sa;password=SQL@1server;encrypt=disable
 

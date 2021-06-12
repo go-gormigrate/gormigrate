@@ -20,7 +20,7 @@ type database struct {
 
 var migrations = []*Migration{
 	{
-		ID: "201608301400",
+		MigrationID: "201608301400",
 		Migrate: func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&Person{})
 		},
@@ -29,7 +29,7 @@ var migrations = []*Migration{
 		},
 	},
 	{
-		ID: "201608301430",
+		MigrationID: "201608301430",
 		Migrate: func(tx *gorm.DB) error {
 			return tx.AutoMigrate(&Pet{})
 		},
@@ -40,7 +40,7 @@ var migrations = []*Migration{
 }
 
 var extendedMigrations = append(migrations, &Migration{
-	ID: "201807221927",
+	MigrationID: "201807221927",
 	Migrate: func(tx *gorm.DB) error {
 		return tx.AutoMigrate(&Book{})
 	},
@@ -51,7 +51,7 @@ var extendedMigrations = append(migrations, &Migration{
 
 var failingMigration = []*Migration{
 	{
-		ID: "201904231300",
+		MigrationID: "201904231300",
 		Migrate: func(tx *gorm.DB) error {
 			if err := tx.AutoMigrate(&Book{}); err != nil {
 				return err
@@ -81,9 +81,19 @@ type Book struct {
 	PersonID int
 }
 
+// copied returns a copy of slice to prevent unexpected modification on original data
+func copied(ms []*Migration) []*Migration {
+	r := make([]*Migration, 0)
+	for _, m := range ms {
+		t := *m
+		r = append(r, &t)
+	}
+	return r
+}
+
 func TestMigration(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, migrations)
+		m := New(db, DefaultOptions, copied(migrations))
 
 		err := m.Migrate()
 		assert.NoError(t, err)
@@ -107,7 +117,7 @@ func TestMigration(t *testing.T) {
 
 func TestMigrateTo(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, extendedMigrations)
+		m := New(db, DefaultOptions, copied(extendedMigrations))
 
 		err := m.MigrateTo("201608301430")
 		assert.NoError(t, err)
@@ -120,7 +130,7 @@ func TestMigrateTo(t *testing.T) {
 
 func TestRollbackTo(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, extendedMigrations)
+		m := New(db, DefaultOptions, copied(extendedMigrations))
 
 		// First, apply all migrations.
 		err := m.Migrate()
@@ -167,7 +177,7 @@ func TestInitSchemaNoMigrations(t *testing.T) {
 // even though the relevant migrations are not applied.
 func TestInitSchemaWithMigrations(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, migrations)
+		m := New(db, DefaultOptions, copied(migrations))
 		m.InitSchema(func(tx *gorm.DB) error {
 			if err := tx.AutoMigrate(&Person{}); err != nil {
 				return err
@@ -222,7 +232,7 @@ func TestInitSchemaExistingMigrations(t *testing.T) {
 	}
 
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, migrations)
+		m := New(db, DefaultOptions, copied(migrations))
 
 		// Migrate without initialisation
 		assert.NoError(t, m.Migrate())
@@ -244,7 +254,7 @@ func TestInitSchemaExistingMigrations(t *testing.T) {
 
 func TestMigrationIDDoesNotExist(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, migrations)
+		m := New(db, DefaultOptions, copied(migrations))
 		assert.Equal(t, ErrMigrationIDDoesNotExist, m.MigrateTo("1234"))
 		assert.Equal(t, ErrMigrationIDDoesNotExist, m.RollbackTo("1234"))
 		assert.Equal(t, ErrMigrationIDDoesNotExist, m.MigrateTo(""))
@@ -271,7 +281,7 @@ func TestReservedID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		migrationsReservedID := []*Migration{
 			{
-				ID: "SCHEMA_INIT",
+				MigrationID: "SCHEMA_INIT",
 				Migrate: func(tx *gorm.DB) error {
 					return nil
 				},
@@ -288,13 +298,13 @@ func TestDuplicatedID(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		migrationsDuplicatedID := []*Migration{
 			{
-				ID: "201705061500",
+				MigrationID: "201705061500",
 				Migrate: func(tx *gorm.DB) error {
 					return nil
 				},
 			},
 			{
-				ID: "201705061500",
+				MigrationID: "201705061500",
 				Migrate: func(tx *gorm.DB) error {
 					return nil
 				},
@@ -328,7 +338,7 @@ func TestMigration_WithUseTransactions(t *testing.T) {
 	options.UseTransaction = true
 
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, options, migrations)
+		m := New(db, options, copied(migrations))
 
 		err := m.Migrate()
 		require.NoError(t, err)
@@ -369,14 +379,14 @@ func TestUnexpectedMigrationEnabled(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		options := DefaultOptions
 		options.ValidateUnknownMigrations = true
-		m := New(db, options, migrations)
+		m := New(db, options, copied(migrations))
 
 		// Migrate without initialisation
 		assert.NoError(t, m.Migrate())
 
 		// Try with fewer migrations. Should fail as we see a migration in the db that
 		// we don't recognise any more
-		n := New(db, DefaultOptions, migrations[:1])
+		n := New(db, DefaultOptions, copied(migrations[:1]))
 		assert.Equal(t, ErrUnknownPastMigration, n.Migrate())
 	})
 }
@@ -385,14 +395,14 @@ func TestUnexpectedMigrationDisabled(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		options := DefaultOptions
 		options.ValidateUnknownMigrations = false
-		m := New(db, options, migrations)
+		m := New(db, options, copied(migrations))
 
 		// Migrate without initialisation
 		assert.NoError(t, m.Migrate())
 
 		// Try with fewer migrations. Should pass as we see a migration in the db that
 		// we don't recognise any more, but the validation defaults off
-		n := New(db, DefaultOptions, migrations[:1])
+		n := New(db, DefaultOptions, copied(migrations[:1]))
 		assert.NoError(t, n.Migrate())
 	})
 }
@@ -418,7 +428,7 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...strin
 			require.NoError(t, err, "Could not connect to database %s, %v", database.dialect, err)
 
 			// ensure tables do not exists
-			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets"))
+			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets", "books"))
 
 			fn(db)
 		}()

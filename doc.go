@@ -39,7 +39,7 @@
 //
 //      m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{
 //          {
-//              ID: "201608301400",
+//              MigrationID: "201608301400",
 //              Migrate: func(tx *gorm.DB) error {
 //                  return tx.AutoMigrate(&Person{}).Error
 //              },
@@ -48,7 +48,7 @@
 //              },
 //          },
 //          {
-//              ID: "201608301430",
+//              MigrationID: "201608301430",
 //              Migrate: func(tx *gorm.DB) error {
 //                  return tx.AutoMigrate(&Pet{}).Error
 //              },
