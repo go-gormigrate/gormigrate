@@ -150,24 +150,24 @@ func TestSort(t *testing.T) {
 }
 func TestDependency(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
-		m := New(db, DefaultOptions, migrationsV1)
+		m := New(db, DefaultOptions, copied(migrationsV1))
 		err := m.Migrate()
 		assert.NoError(t, err)
 		assert.True(t, db.Migrator().HasTable(&Person{}))
 		assert.True(t, db.Migrator().HasTable(&Pet{}))
 		assert.NoError(t, m.RollbackTo("1"))
 		assert.False(t, db.Migrator().HasTable(&Pet{}))
-		m2 := New(db, DefaultOptions, migrationsV2)
+		m2 := New(db, DefaultOptions, copied(migrationsV2))
 		assert.NoError(t, m2.Migrate())
 		assert.True(t, db.Migrator().HasColumn(&PersonV2{}, "Age"))
 		assert.True(t, db.Migrator().HasColumn(&PetsV2{}, "Age"))
-		assert.True(t, runCount == 0)
+		assert.Equal(t, 0, runCount)
 		assert.NoError(t, m.MigrateTo("2"))
-		m3 := New(db, DefaultOptions, migrationsV2)
+		m3 := New(db, DefaultOptions, copied(migrationsV2))
 		assert.NoError(t, m3.Migrate())
-		assert.True(t, runCount == 1)
-		assert.NoError(t, New(db, DefaultOptions, migrationsV2).Migrate()) // re-run00
-		assert.True(t, runCount == 1)
+		assert.Equal(t, 1, runCount)
+		assert.NoError(t, New(db, DefaultOptions, copied(migrationsV2)).Migrate()) // re-run00
+		assert.Equal(t, 1, runCount)
 		ms := make([]*Migration, 0)
 		db.Table(m3.options.TableName).
 			Preload("Dependencies").

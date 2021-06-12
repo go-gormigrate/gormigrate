@@ -4,9 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"gorm.io/gorm/clause"
-	"reflect"
-	"strconv"
-	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -59,53 +56,6 @@ type Migration struct {
 	Dependencies []*Migration `gorm:"foreignKey:DependencyID;references:MigrationID"`
 	// DependencyID is the association id
 	DependencyID *string
-}
-
-// Deprecated: do not use it
-func (m *Migration) WithOptions(options *Options) interface{} {
-	return m
-	// Todo: consider json tag
-
-	t := reflect.TypeOf(Migration{})
-	var fieldMigrationID, fieldDependencies reflect.StructField
-	if f, ok := t.FieldByName("MigrationID"); ok {
-		fieldMigrationID = f
-		s := fieldMigrationID.Tag.Get("gorm")
-		s += fmt.Sprintf(",column:%s,size:%v", options.IDColumnName, options.IDColumnSize)
-		fieldMigrationID.Tag = reflect.StructTag(fmt.Sprintf("gorm:%s", strconv.Quote(s)))
-	}
-
-	if f, ok := t.FieldByName("Dependencies"); ok {
-		fieldDependencies = f
-		s := fieldDependencies.Tag.Get("gorm")
-		s += fmt.Sprintf(",column:%s,size:%v", options.DependencyColumnName, options.IDColumnSize)
-		fieldDependencies.Tag = reflect.StructTag(fmt.Sprintf("gorm:%s", strconv.Quote(s)))
-
-	}
-
-	// stores table name implicitly on first field so it can be read easily
-	field0 := t.Field(0)
-	tbName := string(field0.Tag)
-	tbName += " tname:" + strings.TrimSpace(options.TableName)
-	field0.Tag = reflect.StructTag(tbName)
-
-	fields := []reflect.StructField{field0}
-
-	for i := 1; i < t.NumField(); i++ {
-		if i == fieldMigrationID.Index[0] {
-			fields = append(fields, fieldMigrationID)
-		} else if i == fieldDependencies.Index[0] {
-			fields = append(fields, fieldDependencies)
-		} else {
-			fields = append(fields, t.Field(i))
-		}
-	}
-
-	v := reflect.New(reflect.StructOf(fields)).Elem()
-	for i := 0; i < len(fields); i++ {
-		v.Field(i).Set(reflect.ValueOf(*m).Field(i))
-	}
-	return (&v).Interface()
 }
 
 // Gormigrate represents a collection of all migrations of a database schema.
@@ -204,8 +154,7 @@ func (g *Gormigrate) InitSchema(initSchema InitSchemaFunc) {
 	g.initSchema = initSchema
 }
 
-// Migrate executes all migrations that did not run yet.
-func (g *Gormigrate) Migrate() error {
+func (g *Gormigrate) ensureSession() error {
 	if !g.hasMigrations() {
 		return ErrNoMigrationDefined
 	}
@@ -217,14 +166,40 @@ func (g *Gormigrate) Migrate() error {
 	if err := g.checkDuplicatedID(); err != nil {
 		return err
 	}
-
 	g.begin()
-	defer g.rollback()
-
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
+	return nil
+}
 
+// Migrate executes all migrations that did not run yet.
+func (g *Gormigrate) Migrate() error {
+	if err := g.ensureSession(); err != nil {
+		return err
+	}
+	defer g.rollback()
+	g.resolveDependency()
+	var targetMigrationID string
+	if len(g.migrations) > 0 {
+		targetMigrationID = g.migrations[len(g.migrations)-1].MigrationID
+	}
+	return g.migrate(targetMigrationID)
+}
+
+// MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
+func (g *Gormigrate) MigrateTo(migrationID string) error {
+	if err := g.ensureSession(); err != nil {
+		return err
+	}
+	defer g.rollback()
+	if err := g.checkIDExist(migrationID); err != nil {
+		return err
+	}
+	return g.migrate(migrationID)
+}
+
+func (g *Gormigrate) migrate(migrationID string) error {
 	if g.options.ValidateUnknownMigrations {
 		unknownMigrations, err := g.unknownMigrationsHaveHappened()
 		if err != nil {
@@ -247,24 +222,6 @@ func (g *Gormigrate) Migrate() error {
 			return g.commit()
 		}
 	}
-
-	g.resolveDependency()
-	var targetMigrationID string
-	if len(g.migrations) > 0 {
-		targetMigrationID = g.migrations[len(g.migrations)-1].MigrationID
-	}
-	return g.migrate(targetMigrationID)
-}
-
-// MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
-func (g *Gormigrate) MigrateTo(migrationID string) error {
-	if err := g.checkIDExist(migrationID); err != nil {
-		return err
-	}
-	return g.migrate(migrationID)
-}
-
-func (g *Gormigrate) migrate(migrationID string) error {
 	for _, migration := range g.migrations {
 		if err := g.runMigration(migration); err != nil {
 			return err
@@ -318,10 +275,10 @@ func (g *Gormigrate) RollbackLast() error {
 	if len(g.migrations) == 0 {
 		return ErrNoMigrationDefined
 	}
-
-	g.begin()
+	if err := g.ensureSession(); err != nil {
+		return err
+	}
 	defer g.rollback()
-
 	lastRunMigration, err := g.getLastRunMigration()
 	if err != nil {
 		return err
@@ -344,9 +301,10 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 		return err
 	}
 
-	g.begin()
+	if err := g.ensureSession(); err != nil {
+		return err
+	}
 	defer g.rollback()
-
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
 		if migration.MigrationID == migrationID {
@@ -383,9 +341,10 @@ func (g *Gormigrate) getLastRunMigration() (*Migration, error) {
 
 // RollbackMigration undo a migration.
 func (g *Gormigrate) RollbackMigration(m *Migration) error {
-	g.begin()
+	if err := g.ensureSession(); err != nil {
+		return err
+	}
 	defer g.rollback()
-
 	if err := g.rollbackMigration(m); err != nil {
 		return err
 	}
@@ -397,24 +356,57 @@ func (g *Gormigrate) rollbackMigration(m *Migration) error {
 		return ErrRollbackImpossible
 	}
 
-	if err := m.Rollback(g.tx); err != nil {
+	return g.rollbackRecursively(m)
+}
+
+func (g *Gormigrate) rollbackRecursively(m *Migration) error {
+	lookups := make([]*Migration, 0)
+	_ = g.tx.Transaction(func(tx *gorm.DB) error {
+		return tx.Table(g.options.TableName).
+			Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.MigrationID).
+			Where(fmt.Sprintf("%s IS NOT NULL", g.options.DependencyColumnName)).
+			Find(&lookups).Error
+	})
+	for _, r := range lookups {
+		if r.DependencyID == nil {
+			continue
+		}
+		for _, f := range g.migrations {
+			if f.MigrationID == *r.DependencyID {
+				if err := g.rollbackRecursively(f); err != nil {
+					return err
+				}
+				break
+			}
+		}
+	}
+	if m.Rollback == nil {
+		return ErrRollbackImpossible
+	} else if err := m.Rollback(g.tx); err != nil {
 		return err
 	}
-
-	sql := fmt.Sprintf("DELETE FROM %s WHERE %s = ?", g.options.TableName, g.options.IDColumnName)
-	return g.tx.Exec(sql, m.MigrationID).Error
+	return g.tx.Transaction(func(tx *gorm.DB) error {
+		err := tx.Table(g.options.TableName).
+			Where(fmt.Sprintf("%s = ?", g.options.DependencyColumnName), m.MigrationID).
+			Update(g.options.DependencyColumnName, nil).Error
+		if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		err = tx.Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.MigrationID).Delete(m).Error
+		return err
+	})
 }
 
 func (g *Gormigrate) runInitSchema() error {
 	if err := g.initSchema(g.tx); err != nil {
 		return err
 	}
-	if err := g.insertMigration(initSchemaMigrationID); err != nil {
+	if err := g.insertMigrationID(initSchemaMigrationID); err != nil {
 		return err
 	}
 
 	for _, migration := range g.migrations {
-		if err := g.insertMigrationWithDependency(migration); err != nil {
+		if err := g.insertMigrationID(migration.MigrationID); err != nil {
 			return err
 		}
 	}
@@ -436,7 +428,7 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 			return err
 		}
 
-		if err := g.insertMigrationWithDependency(migration); err != nil {
+		if err := g.insertMigration(migration); err != nil {
 			return err
 		}
 	}
@@ -457,11 +449,13 @@ func (g *Gormigrate) createMigrationTableIfNotExists() (err error) {
 
 func (g *Gormigrate) migrationRan(m *Migration) (bool, error) {
 	var count int64
-	err := g.tx.
-		Table(g.options.TableName).
-		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.MigrationID).
-		Count(&count).
-		Error
+	err := g.tx.Transaction(func(tx *gorm.DB) error {
+		return tx.Table(g.options.TableName).
+			Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.MigrationID).
+			Count(&count).
+			Error
+	})
+
 	// ignore dependency since it has been stored
 	return count > 0, err
 }
@@ -513,20 +507,24 @@ func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
 	return false, nil
 }
 
-func (g *Gormigrate) insertMigration(id string) error {
-	sql := fmt.Sprintf("INSERT INTO %s (%s) VALUES (?)", g.options.TableName, g.options.IDColumnName)
-	return g.tx.Exec(sql, id).Error
+func (g *Gormigrate) insertMigrationID(id string) error {
+	return g.insertMigration(&Migration{MigrationID: id})
 }
 
-func (g *Gormigrate) insertMigrationWithDependency(m *Migration) error {
-	return g.tx.Table(g.options.TableName).Model(m).
-		Clauses(clause.OnConflict{
-			UpdateAll: true,
-		}).
-		Create(m).Error
+func (g *Gormigrate) insertMigration(m *Migration) error {
+	return g.tx.Transaction(func(tx *gorm.DB) error {
+		return tx.Table(g.options.TableName).
+			Clauses(clause.OnConflict{
+				DoNothing: true,
+			}).
+			Create(m).Error
+	})
 }
 
 func (g *Gormigrate) begin() {
+	if g.tx != nil {
+		return
+	}
 	if g.options.UseTransaction {
 		g.tx = g.db.Begin()
 	} else {
@@ -542,7 +540,11 @@ func (g *Gormigrate) commit() error {
 }
 
 func (g *Gormigrate) rollback() {
+	if g.tx == nil {
+		return
+	}
 	if g.options.UseTransaction {
 		g.tx.Rollback()
 	}
+	g.tx = nil
 }
