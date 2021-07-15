@@ -250,7 +250,7 @@ func (g *Gormigrate) RollbackLast() error {
 
 	g.begin()
 	defer g.rollback()
-	
+
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
@@ -279,7 +279,7 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 
 	g.begin()
 	defer g.rollback()
-	
+
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
@@ -322,7 +322,7 @@ func (g *Gormigrate) getLastRunMigration() (*Migration, error) {
 func (g *Gormigrate) RollbackMigration(m *Migration) error {
 	g.begin()
 	defer g.rollback()
-	
+
 	if err := g.createMigrationTableIfNotExists(); err != nil {
 		return err
 	}
