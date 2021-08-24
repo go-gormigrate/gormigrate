@@ -294,6 +294,20 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 	return g.commit()
 }
 
+func (g *Gormigrate) GetLastRunMigrationID() (string, error) {
+	mig, err := g.GetLastRunMigration()
+	// Check error
+	if err != nil {
+		return "", err
+	}
+
+	return mig.ID, nil
+}
+
+func (g *Gormigrate) GetLastRunMigration() (*Migration, error) {
+	return g.getLastRunMigration()
+}
+
 func (g *Gormigrate) getLastRunMigration() (*Migration, error) {
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
