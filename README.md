@@ -169,6 +169,10 @@ type Options struct {
 	// ValidateUnknownMigrations will cause migrate to fail if there's unknown migration
 	// IDs in the database
 	ValidateUnknownMigrations bool
+	// AutomaticRollback will automatically run rollback methods if provided
+	// and if migrate function failed. This is only done when UseTransaction is disabled.
+	// Otherwise it will be rollback by the transaction itself.
+	AutomaticRollback bool
 }
 ```
 
