@@ -586,7 +586,7 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...strin
 			require.NoError(t, err, "Could not connect to database %s, %v", database.dialect, err)
 
 			// ensure tables do not exists
-			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets"))
+			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets", "cars"))
 
 			fn(db)
 		}()
