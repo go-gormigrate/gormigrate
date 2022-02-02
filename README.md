@@ -59,7 +59,7 @@ func main() {
 				return tx.AutoMigrate(&Person{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return tx.Migrator().DropTable("people")
+				return tx.Migrator().DropTable("persons")
 			},
 		},
 		// add age column to persons
@@ -73,7 +73,11 @@ func main() {
 				return tx.AutoMigrate(&Person{})
 			},
 			Rollback: func(tx *gorm.DB) error {
-				return tx.Migrator().DropColumn("people", "age")
+				// still need empty struct declaration to use in this block
+				type Person struct {
+					gorm.Model
+				}
+				return tx.Migrator().DropColumn(&Person{}, "age")
 			},
 		},
 		// add pets table
