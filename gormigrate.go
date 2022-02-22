@@ -3,6 +3,7 @@ package gormigrate
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"gorm.io/gorm"
 )
@@ -373,12 +374,19 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 }
 
 func (g *Gormigrate) createMigrationTableIfNotExists() error {
-	if g.tx.Migrator().HasTable(g.options.TableName) {
-		return nil
+
+	dialector := g.tx.Dialector.Name()
+	var sql string
+
+	// Added syntax support for immudb
+	if strings.HasPrefix(dialector, "immudb") {
+		sql = fmt.Sprintf("CREATE TABLE %s (%s VARCHAR[%d], PRIMARY KEY(%s))", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize, g.options.IDColumnName)
+		return g.tx.Exec(sql).Error
+	} else {
+		sql = fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
+		return g.tx.Exec(sql).Error
 	}
 
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
-	return g.tx.Exec(sql).Error
 }
 
 func (g *Gormigrate) migrationRan(m *Migration) (bool, error) {
