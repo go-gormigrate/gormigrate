@@ -310,6 +310,9 @@ func (g *Gormigrate) GetLastRunMigrationID() (string, error) {
 }
 
 func (g *Gormigrate) GetLastRunMigration() (*Migration, error) {
+	// Call Begin here to avoid any nil pointer in tx
+	g.begin()
+
 	return g.getLastRunMigration()
 }
 
