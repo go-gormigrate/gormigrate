@@ -2,7 +2,6 @@ package gormigrate
 
 import (
 	"errors"
-	"fmt"
 	"testing"
 
 	_ "github.com/joho/godotenv/autoload"
@@ -409,7 +408,7 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...strin
 
 	for _, database := range databases {
 		if len(dialects) > 0 && !contains(dialects, database.dialect) {
-			t.Skip(fmt.Sprintf("test is not supported by [%s] dialect", database.dialect))
+			t.Skipf("test is not supported by [%s] dialect", database.dialect)
 		}
 
 		// Ensure defers are not stacked up for each DB
