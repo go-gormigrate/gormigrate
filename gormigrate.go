@@ -3,6 +3,8 @@ package gormigrate
 import (
 	"errors"
 	"fmt"
+	"strings"
+	"text/template"
 
 	"gorm.io/gorm"
 )
@@ -28,6 +30,10 @@ type Options struct {
 	IDColumnName string
 	// IDColumnSize is the length of the migration id column
 	IDColumnSize int
+	// TableCreationTemplate is the template used to assemble the SQL statement
+	// for creating the migration table. It can use the variables
+	// TableName, IDColumnName, IDColumnSize .
+	TableCreationTemplate string
 	// UseTransaction makes Gormigrate execute migrations inside a single transaction.
 	// Keep in mind that not all databases support DDL commands inside transactions.
 	UseTransaction bool
@@ -79,6 +85,7 @@ var (
 		TableName:                 "migrations",
 		IDColumnName:              "id",
 		IDColumnSize:              255,
+		TableCreationTemplate:     "CREATE TABLE {{.TableName}} ({{.IDColumnName}} VARCHAR({{.IDColumnSize}}) PRIMARY KEY)",
 		UseTransaction:            false,
 		ValidateUnknownMigrations: false,
 	}
@@ -115,6 +122,9 @@ func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
 	}
 	if options.IDColumnSize == 0 {
 		options.IDColumnSize = DefaultOptions.IDColumnSize
+	}
+	if options.TableCreationTemplate == "" {
+		options.TableCreationTemplate = DefaultOptions.TableCreationTemplate
 	}
 	return &Gormigrate{
 		db:         db,
@@ -377,8 +387,19 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 		return nil
 	}
 
-	sql := fmt.Sprintf("CREATE TABLE %s (%s VARCHAR(%d) PRIMARY KEY)", g.options.TableName, g.options.IDColumnName, g.options.IDColumnSize)
-	return g.tx.Exec(sql).Error
+	// Parse the template for the SQL statement to create the migration table.
+	t, err := template.New("create").Parse(g.options.TableCreationTemplate)
+	if err != nil {
+		return err
+	}
+	// Execute the template with the options specified by the user.
+	var sql strings.Builder
+	err = t.Execute(&sql, g.options)
+	if err != nil {
+		return err
+	}
+
+	return g.tx.Exec(sql.String()).Error
 }
 
 func (g *Gormigrate) migrationRan(m *Migration) (bool, error) {
