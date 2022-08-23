@@ -396,6 +396,81 @@ func TestUnexpectedMigrationDisabled(t *testing.T) {
 	})
 }
 
+func TestFakeMigration(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, migrations)
+
+		assert.NoError(t, m.FakeMigrate())
+		assert.False(t, db.Migrator().HasTable(&Person{}))
+		assert.False(t, db.Migrator().HasTable(&Pet{}))
+		assert.Equal(t, int64(2), tableCount(t, db, "migrations"))
+	})
+}
+
+func TestFakeMigrateTo(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, extendedMigrations)
+
+		assert.NoError(t, m.FakeMigrateTo("201608301430"))
+		assert.False(t, db.Migrator().HasTable(&Person{}))
+		assert.False(t, db.Migrator().HasTable(&Pet{}))
+		assert.False(t, db.Migrator().HasTable(&Book{}))
+		assert.Equal(t, int64(2), tableCount(t, db, "migrations"))
+	})
+}
+
+func TestFakeRollbackTo(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, extendedMigrations)
+
+		// First, apply all migrations.
+		assert.NoError(t, m.Migrate())
+		assert.True(t, db.Migrator().HasTable(&Person{}))
+		assert.True(t, db.Migrator().HasTable(&Pet{}))
+		assert.True(t, db.Migrator().HasTable(&Book{}))
+		assert.Equal(t, int64(3), tableCount(t, db, "migrations"))
+
+		// Fake rolling back to the first migration: all the tables are expected to exist and only one migration record is expected to exist.
+		assert.NoError(t, m.FakeRollbackTo("201608301400"))
+		assert.True(t, db.Migrator().HasTable(&Person{}))
+		assert.True(t, db.Migrator().HasTable(&Pet{}))
+		assert.True(t, db.Migrator().HasTable(&Book{}))
+		assert.Equal(t, int64(1), tableCount(t, db, "migrations"))
+	})
+}
+
+// If initSchema is defined, and we ran FakeMigrate,
+// then initScehma's migrations inserted and no migrations executed.
+func TestFakingInitSchema(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, []*Migration{})
+		m.InitSchema(func(tx *gorm.DB) error {
+			if err := tx.AutoMigrate(&Person{}); err != nil {
+				return err
+			}
+			if err := tx.AutoMigrate(&Pet{}); err != nil {
+				return err
+			}
+			return nil
+		})
+
+		assert.NoError(t, m.FakeMigrate())
+		assert.False(t, db.Migrator().HasTable(&Person{}))
+		assert.False(t, db.Migrator().HasTable(&Pet{}))
+		assert.Equal(t, int64(1), tableCount(t, db, "migrations"))
+	})
+}
+
+func TestFakingMigrationIDDoesNotExist(t *testing.T) {
+	forEachDatabase(t, func(db *gorm.DB) {
+		m := New(db, DefaultOptions, migrations)
+		assert.Equal(t, ErrMigrationIDDoesNotExist, m.FakeMigrateTo("1234"))
+		assert.Equal(t, ErrMigrationIDDoesNotExist, m.FakeRollbackTo("1234"))
+		assert.Equal(t, ErrMigrationIDDoesNotExist, m.FakeMigrateTo(""))
+		assert.Equal(t, ErrMigrationIDDoesNotExist, m.FakeRollbackTo(""))
+	})
+}
+
 func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int64) {
 	assert.NoError(t, db.Table(tableName).Count(&count).Error)
 	return
