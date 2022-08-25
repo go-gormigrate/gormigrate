@@ -1,4 +1,5 @@
-module github.com/go-gormigrate/gormigrate/v2
+module github.com/CloudInn/gormigrate/v2
+
 
 go 1.18
 
