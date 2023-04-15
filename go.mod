@@ -7,9 +7,9 @@ require (
 	github.com/stretchr/testify v1.8.0
 	gorm.io/driver/mysql v1.4.6
 	gorm.io/driver/postgres v1.3.8
-	gorm.io/driver/sqlite v1.3.6
+	gorm.io/driver/sqlite v1.5.0
 	gorm.io/driver/sqlserver v1.3.2
-	gorm.io/gorm v1.23.8
+	gorm.io/gorm v1.24.7-0.20230306060331-85eaf9eeda11
 )
 
 require (
@@ -28,7 +28,7 @@ require (
 	github.com/jackc/pgx/v4 v4.16.1 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/mattn/go-sqlite3 v1.14.12 // indirect
+	github.com/mattn/go-sqlite3 v1.14.15 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 // indirect
 	golang.org/x/text v0.3.7 // indirect
