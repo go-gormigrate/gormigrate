@@ -1,3 +1,5 @@
+> :warning: ***WARNING***: This repository is no longer been maintained! I recommend you to fork it if you need to make any changes.
+
 # Gormigrate
 
 [![PkgGoDev](https://pkg.go.dev/badge/github.com/go-gormigrate/gormigrate/v2?tab=doc)](https://pkg.go.dev/github.com/go-gormigrate/gormigrate/v2?tab=doc)
