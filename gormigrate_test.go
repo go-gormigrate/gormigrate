@@ -364,6 +364,174 @@ func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 	}, "postgres", "sqlite3", "mssql")
 }
 
+// This test will only focus on automatic rollback or not, not on the database itself or migrations.
+func TestMigration_WithAutomaticRollbackShouldRollback(t *testing.T) {
+	t.Run("rollback without any error", func(t *testing.T) {
+		wantedError := errors.New("wanted")
+		rollbackCalled := false
+
+		forEachDatabase(t, func(db *gorm.DB) {
+			m := New(db, &Options{AutomaticRollback: true}, []*Migration{
+				{
+					ID: "201904231300",
+					Migrate: func(tx *gorm.DB) error {
+						return wantedError
+					},
+					Rollback: func(tx *gorm.DB) error {
+						rollbackCalled = true
+						return nil
+					},
+				},
+			})
+
+			// Migration should return an error and not leave around a Pet table
+			err := m.Migrate()
+			assert.Error(t, err)
+			assert.Equal(t, wantedError, err)
+			assert.True(t, rollbackCalled)
+		})
+	})
+
+	t.Run("rollback with an error", func(t *testing.T) {
+		wantedError := errors.New("wanted")
+		rollbackError := errors.New("rollback error")
+		rollbackCalled := false
+
+		forEachDatabase(t, func(db *gorm.DB) {
+			m := New(db, &Options{AutomaticRollback: true}, []*Migration{
+				{
+					ID: "201904231300",
+					Migrate: func(tx *gorm.DB) error {
+						return wantedError
+					},
+					Rollback: func(tx *gorm.DB) error {
+						rollbackCalled = true
+						return rollbackError
+					},
+				},
+			})
+
+			// Migration should return an error and not leave around a Pet table
+			err := m.Migrate()
+			assert.Error(t, err)
+			assert.Equal(t, wantedError, err)
+			assert.True(t, rollbackCalled)
+		})
+	})
+}
+
+// This test will only focus on automatic rollback or not, not on the database itself or migrations.
+func TestMigration_WithoutAutomaticRollbackShouldNotRollback(t *testing.T) {
+	t.Run("rollback without any error", func(t *testing.T) {
+		wantedError := errors.New("wanted")
+		rollbackCalled := false
+
+		forEachDatabase(t, func(db *gorm.DB) {
+			m := New(db, DefaultOptions, []*Migration{
+				{
+					ID: "201904231300",
+					Migrate: func(tx *gorm.DB) error {
+						return wantedError
+					},
+					Rollback: func(tx *gorm.DB) error {
+						rollbackCalled = true
+						return nil
+					},
+				},
+			})
+
+			// Migration should return an error and not leave around a Pet table
+			err := m.Migrate()
+			assert.Error(t, err)
+			assert.Equal(t, wantedError, err)
+			assert.False(t, rollbackCalled)
+		})
+	})
+
+	t.Run("rollback with an error", func(t *testing.T) {
+		wantedError := errors.New("wanted")
+		rollbackError := errors.New("rollback error")
+		rollbackCalled := false
+
+		forEachDatabase(t, func(db *gorm.DB) {
+			m := New(db, DefaultOptions, []*Migration{
+				{
+					ID: "201904231300",
+					Migrate: func(tx *gorm.DB) error {
+						return wantedError
+					},
+					Rollback: func(tx *gorm.DB) error {
+						rollbackCalled = true
+						return rollbackError
+					},
+				},
+			})
+
+			// Migration should return an error and not leave around a Pet table
+			err := m.Migrate()
+			assert.Error(t, err)
+			assert.Equal(t, wantedError, err)
+			assert.False(t, rollbackCalled)
+		})
+	})
+}
+
+// This test will only focus on automatic rollback or not, not on the database itself or migrations.
+func TestMigration_WithoutAutomaticRollbackAndUseTransactionShouldNotRollback(t *testing.T) {
+	t.Run("rollback without any error", func(t *testing.T) {
+		wantedError := errors.New("wanted")
+		rollbackCalled := false
+
+		forEachDatabase(t, func(db *gorm.DB) {
+			m := New(db, &Options{UseTransaction: true, AutomaticRollback: true}, []*Migration{
+				{
+					ID: "201904231300",
+					Migrate: func(tx *gorm.DB) error {
+						return wantedError
+					},
+					Rollback: func(tx *gorm.DB) error {
+						rollbackCalled = true
+						return nil
+					},
+				},
+			})
+
+			// Migration should return an error and not leave around a Pet table
+			err := m.Migrate()
+			assert.Error(t, err)
+			assert.Equal(t, wantedError, err)
+			assert.False(t, rollbackCalled)
+		})
+	})
+
+	t.Run("rollback with an error", func(t *testing.T) {
+		wantedError := errors.New("wanted")
+		rollbackError := errors.New("rollback error")
+		rollbackCalled := false
+
+		forEachDatabase(t, func(db *gorm.DB) {
+			m := New(db, &Options{UseTransaction: true, AutomaticRollback: true}, []*Migration{
+				{
+					ID: "201904231300",
+					Migrate: func(tx *gorm.DB) error {
+						return wantedError
+					},
+					Rollback: func(tx *gorm.DB) error {
+						rollbackCalled = true
+						return rollbackError
+					},
+				},
+			})
+
+			// Migration should return an error and not leave around a Pet table
+			err := m.Migrate()
+			assert.Error(t, err)
+			assert.Equal(t, wantedError, err)
+			assert.False(t, rollbackCalled)
+		})
+	})
+}
+
 func TestUnexpectedMigrationEnabled(t *testing.T) {
 	forEachDatabase(t, func(db *gorm.DB) {
 		options := DefaultOptions
@@ -417,7 +585,7 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...strin
 			require.NoError(t, err, "Could not connect to database %s, %v", database.dialect, err)
 
 			// ensure tables do not exists
-			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets"))
+			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets", "cars"))
 
 			fn(db)
 		}()
