@@ -200,7 +200,7 @@ go test -tags sqlserver
 go test -tags 'sqlite postgresql mysql'
 ```
 
-Or altenatively, you could use Docker to easily run tests on all databases
+Or alternatively, you could use Docker to easily run tests on all databases
 at once. To do that, make sure Docker is installed and running in your machine
 and then run:
 
