@@ -1,6 +1,6 @@
 // +build sqlite
 
-package gormigrate
+package gormigrate_test
 
 import (
 	"os"
