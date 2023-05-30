@@ -1,4 +1,4 @@
-// +build sqlserver
+//go:build sqlserver
 
 package gormigrate_test
 
