@@ -1,6 +1,6 @@
 // +build sqlserver
 
-package gormigrate
+package gormigrate_test
 
 import (
 	"os"

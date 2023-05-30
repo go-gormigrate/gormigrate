@@ -1,6 +1,6 @@
 // +build mysql
 
-package gormigrate
+package gormigrate_test
 
 import (
 	"os"

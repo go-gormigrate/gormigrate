@@ -1,6 +1,6 @@
 // +build postgresql
 
-package gormigrate
+package gormigrate_test
 
 import (
 	"os"
