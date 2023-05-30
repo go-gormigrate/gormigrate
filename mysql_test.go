@@ -1,4 +1,4 @@
-// +build mysql
+//go:build mysql
 
 package gormigrate_test
 

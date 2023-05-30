@@ -1,4 +1,4 @@
-// +build postgresql
+//go:build postgresql
 
 package gormigrate_test
 
