@@ -405,7 +405,7 @@ func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int64) {
 
 func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...string) {
 	if len(databases) == 0 {
-		panic("No database choosen for testing!")
+		panic("No database chosen for testing!")
 	}
 
 	for _, database := range databases {
