@@ -1,7 +1,10 @@
 # Gormigrate
 
-[![PkgGoDev](https://pkg.go.dev/badge/github.com/go-gormigrate/gormigrate/v2?tab=doc)](https://pkg.go.dev/github.com/go-gormigrate/gormigrate/v2?tab=doc)
-[![Build status](https://ci.appveyor.com/api/projects/status/89e414sklbwefyyp?svg=true)](https://ci.appveyor.com/project/andreynering/gormigrate)
+[![Latest Release](https://img.shields.io/github/release/go-gormigrate/gormigrate.svg)](https://github.com/go-gormigrate/gormigrate/releases)
+[![Go Reference](https://pkg.go.dev/badge/github.com/go-gormigrate/gormigrate/v2.svg)](https://pkg.go.dev/github.com/go-gormigrate/gormigrate/v2)
+[![Go Report Card](https://goreportcard.com/badge/github.com/go-gormigrate/gormigrate)](https://goreportcard.com/report/github.com/go-gormigrate/gormigrate)
+[![CI | Test](https://github.com/go-gormigrate/gormigrate/actions/workflows/test.yml/badge.svg)](https://github.com/go-gormigrate/gormigrate/actions)
+[![CI | Lint](https://github.com/go-gormigrate/gormigrate/actions/workflows/lint.yml/badge.svg)](https://github.com/go-gormigrate/gormigrate/actions)
 
 Gormigrate is a minimalistic migration helper for [Gorm][gorm].
 Gorm already has useful [migrate functions][gormmigrate], just misses
