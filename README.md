@@ -19,10 +19,12 @@ proper schema versioning and migration rollback support.
 
 It supports any of the [databases Gorm supports][gormdatabases]:
 
-- PostgreSQL
 - MySQL
+- PostgreSQL
 - SQLite
-- Microsoft SQL Server
+- SQL Server
+- TiDB
+- Clickhouse
 
 ## Usage
 
