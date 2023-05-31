@@ -1,3 +1,4 @@
+// Package gormigrate is a minimalistic migration helper for Gorm (http://gorm.io)
 package gormigrate
 
 import (
