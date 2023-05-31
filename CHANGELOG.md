@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 ### Changed
 - Refactor plain sql mutation statements (create, insert, delete) into native gorm methods
+- Update dependencies
 
 ## [2.0.3] - 2023-05-29
 ### Changed
