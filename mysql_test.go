@@ -11,6 +11,6 @@ import (
 func init() {
 	databases = append(databases, database{
 		dialect: "mysql",
-		driver:  mysql.Open(os.Getenv("MYSQL_CONN_STRING")),
+		driver:  mysql.Open(os.Getenv("MYSQL_DSN")),
 	})
 }

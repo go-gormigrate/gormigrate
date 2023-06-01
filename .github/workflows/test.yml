@@ -22,4 +22,4 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Test
-        run: task docker
+        run: task docker:test

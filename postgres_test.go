@@ -1,4 +1,4 @@
-//go:build postgresql
+//go:build postgres
 
 package gormigrate_test
 
@@ -11,6 +11,6 @@ import (
 func init() {
 	databases = append(databases, database{
 		dialect: "postgres",
-		driver:  postgres.Open(os.Getenv("PG_CONN_STRING")),
+		driver:  postgres.Open(os.Getenv("POSTGRES_DSN")),
 	})
 }
