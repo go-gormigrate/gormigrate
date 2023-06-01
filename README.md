@@ -25,7 +25,7 @@ It supports any of the [databases Gorm supports][gormdatabases]:
 - MySQL
 - PostgreSQL
 - SQLite
-- SQL Server
+- Microsoft SQL Server
 - TiDB
 - Clickhouse
 
@@ -203,20 +203,20 @@ string of the database you want to run tests against. Then, run tests like
 below:
 
 ```bash
-# running tests for PostgreSQL
-go test -tags postgresql
-
 # running test for MySQL
 go test -tags mysql
+
+# running tests for PostgreSQL
+go test -tags postgres
 
 # running tests for SQLite
 go test -tags sqlite
 
-# running tests for SQL Server
+# running tests for Microsoft SQL Server
 go test -tags sqlserver
 
 # running test for multiple databases at once
-go test -tags 'sqlite postgresql mysql'
+go test -tags 'mysql postgres sqlite sqlserver'
 ```
 
 Or alternatively, you could use Docker to easily run tests on all databases
@@ -224,7 +224,7 @@ at once. To do that, make sure Docker is installed and running in your machine
 and then run:
 
 ```bash
-task docker
+task docker:test
 ```
 
 [gorm]: http://gorm.io/

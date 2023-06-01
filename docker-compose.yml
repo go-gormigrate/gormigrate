@@ -2,34 +2,34 @@ version: '3'
 
 services:
   gormigrate:
-    image: gormigrate
+    build:
+      context: .
     depends_on:
-      - postgresql
+      - postgres
       - mysql
       - sqlserver
     environment:
-      PGPASSWORD: postgres
-      PG_CONN_STRING: host=postgresql user=postgres dbname=gormigrate_test port=5432 sslmode=disable
+      POSTGRES_DSN: host=postgres user=gormigrate password=gormigrate dbname=gormigrate port=5432 sslmode=disable
+      MYSQL_DSN: gormigrate:gormigrate@tcp(mysql:3306)/gormigrate?charset=utf8
+      SQLSERVER_DSN: sqlserver://sa:LoremIpsum86@sqlserver:1433?database=master&encrypt=disable
 
-      MYSQL_CONN_STRING: root:mysql@tcp(mysql)/gormigrate_test?multiStatements=true
-
-      SQLSERVER_CONN_STRING: server=sqlserver;database=master;user id=sa;password=SQL@1server;encrypt=disable
-
-  postgresql:
-    image: postgres:11.2
+  postgres:
+    image: postgres:14-alpine
     environment:
-      POSTGRES_DB: gormigrate_test
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: gormigrate
+      POSTGRES_USER: gormigrate
+      POSTGRES_PASSWORD: gormigrate
 
   mysql:
-    image: mysql:5.7
+    image: mariadb:10
     environment:
-      MYSQL_DATABASE: gormigrate_test
-      MYSQL_ROOT_PASSWORD: mysql
+      MYSQL_DATABASE: gormigrate
+      MYSQL_ROOT_PASSWORD: gormigrate
+      MYSQL_USER: gormigrate
+      MYSQL_PASSWORD: gormigrate
 
   sqlserver:
-    image: mcr.microsoft.com/mssql/server:2017-latest-ubuntu
+    image: mcr.microsoft.com/mssql/server:2022-latest
     environment:
-      ACCEPT_EULA: 'Y'
-      SA_PASSWORD: SQL@1server
+      ACCEPT_EULA: Y
+      MSSQL_SA_PASSWORD: LoremIpsum86

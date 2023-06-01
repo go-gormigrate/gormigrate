@@ -3,26 +3,14 @@
 version: '3'
 
 tasks:
-  go-get-all:
-    cmds:
-      - go get -t -tags 'sqlite postgresql mysql sqlserver' ./...
-
   lint:
     desc: Runs golangci-lint
     cmds:
       - golangci-lint run
 
-  test-sqlite:
-    desc: Run tests for SQLite
+  test:
     cmds:
-      - task: test
-        vars: {DATABASE: sqlite}
-
-  test-pg:
-    desc: Run tests for PostgreSQL
-    cmds:
-      - task: test
-        vars: {DATABASE: postgresql}
+      - go test -v -tags {{.DATABASE}}
 
   test-mysql:
     desc: Run tests for MySQL
@@ -30,26 +18,51 @@ tasks:
       - task: test
         vars: {DATABASE: mysql}
 
+  test-postgres:
+    desc: Run tests for PostgreSQL
+    cmds:
+      - task: test
+        vars: {DATABASE: postgres}
+
+  test-sqlite:
+    desc: Run tests for SQLite
+    cmds:
+      - task: test
+        vars: {DATABASE: sqlite}
+
   test-sqlserver:
     desc: Run tests for Microsoft SQL Server
     cmds:
       - task: test
         vars: {DATABASE: sqlserver}
 
-  test:
-    cmds:
-      - go test -v -tags {{.DATABASE}}
+  test-all:
+    desc: Run tests for all databases
+    deps: [test-mysql, test-postgres, test-sqlite, test-sqlserver]
 
-  docker:
+# Docker tasks
+
+  docker:compose:down:
     cmds:
-      - task: docker:build
-      - task: docker:test
+      - docker compose down --volumes --remove-orphans
+
+  docker:compose:up:
+    desc: Start docker compose with database services
+    deps: [docker:compose:down]
+    cmds:
+      - docker compose up --detach --no-deps --remove-orphans --force-recreate --no-deps gormigrate
+
+  docker:compose:logs:
+    desc: Start streaming docker compose logs
+    cmds:
+      - docker compose logs --follow --tail 50
 
   docker:build:
     cmds:
-      - docker build -t gormigrate .
+      - docker compose build gormigrate
 
   docker:test:
+    deps: [docker:compose:up, docker:build]
     cmds:
-      - docker-compose down -v
-      - docker-compose run gormigrate go test -v -tags 'postgresql sqlite mysql sqlserver'
+      - defer: task docker:compose:down
+      - docker compose run gormigrate go test -v -tags 'postgres sqlite mysql sqlserver'
