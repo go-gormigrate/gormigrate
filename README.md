@@ -62,7 +62,7 @@ func main() {
 				ID   uuid.UUID `gorm:"type:uuid;primaryKey;uniqueIndex"`
 				Name string
 			}
-			return tx.AutoMigrate(&user{})
+			return tx.Migrator().CreateTable(&user{})
 		},
 		Rollback: func(tx *gorm.DB) error {
 			return tx.Migrator().DropTable("users")
@@ -92,7 +92,7 @@ func main() {
 				Name    string
 				Address string
 			}
-			if err := tx.AutoMigrate(&organization{}); err != nil {
+			if err := tx.Migrator().CreateTable(&organization{}); err != nil {
 				return err
 			}
 			type user struct {
