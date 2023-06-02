@@ -403,7 +403,10 @@ func (g *Gormigrate) createMigrationTableIfNotExists() error {
 
 func (g *Gormigrate) migrationRan(m *Migration) (bool, error) {
 	var count int64
-	err := g.tx.
+	// if g.tx.clone == 0, g.tx.Statement.Table is always equal to "migrations",it will get a wrong result.
+	tx := g.tx.Session(&gorm.Session{})
+
+	err := tx.
 		Table(g.options.TableName).
 		Where(fmt.Sprintf("%s = ?", g.options.IDColumnName), m.ID).
 		Count(&count).

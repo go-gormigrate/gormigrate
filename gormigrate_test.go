@@ -421,6 +421,9 @@ func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...strin
 			// ensure tables do not exists
 			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets"))
 
+			// set charset, get the result of db.clone is 0
+			db = db.Set("gorm:table_options", "CHARSET=utf8mb4")
+
 			fn(db)
 		}()
 	}
