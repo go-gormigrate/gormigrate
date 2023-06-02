@@ -58,7 +58,7 @@ tasks:
     deps: [docker:compose:down]
     cmds:
       - task: docker:compose
-        vars: {CMD: up --detach --no-deps --remove-orphans --force-recreate}
+        vars: {CMD: up --detach --no-deps --remove-orphans --force-recreate --wait}
 
   docker:compose:logs:
     desc: Start streaming docker compose logs
