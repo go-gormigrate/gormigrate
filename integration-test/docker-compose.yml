@@ -9,10 +9,11 @@ services:
       POSTGRES_DB: gormigrate
       POSTGRES_USER: gormigrate
       POSTGRES_PASSWORD: gormigrate
-
-  postgres-wait:
-    image: eficode/wait-for
-    command: postgres:5432
+    healthcheck:
+      test: pg_isready --username="$${POSTGRES_USER}" --dbname="$${POSTGRES_DB}"
+      interval: 2s
+      timeout: 3s
+      retries: 10
 
   mysql:
     image: mariadb:10
@@ -23,10 +24,11 @@ services:
       MYSQL_ROOT_PASSWORD: gormigrate
       MYSQL_USER: gormigrate
       MYSQL_PASSWORD: gormigrate
-
-  mysql-wait:
-    image: eficode/wait-for
-    command: mysql:3306
+    healthcheck:
+      test: mysqladmin ping --user="$${MYSQL_USER}" --password="$${MYSQL_PASSWORD}"
+      interval: 2s
+      timeout: 3s
+      retries: 10
 
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
@@ -35,7 +37,8 @@ services:
     environment:
       ACCEPT_EULA: Y
       MSSQL_SA_PASSWORD: LoremIpsum86
-
-  sqlserver-wait:
-    image: eficode/wait-for
-    command: sqlserver:1433
+    healthcheck:
+      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -Q "SELECT 1" -b -o /dev/null
+      interval: 5s
+      timeout: 3s
+      retries: 20
