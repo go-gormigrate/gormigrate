@@ -1,35 +1,41 @@
 version: '3'
 
 services:
-  gormigrate:
-    build:
-      context: .
-    depends_on:
-      - postgres
-      - mysql
-      - sqlserver
-    environment:
-      POSTGRES_DSN: host=postgres user=gormigrate password=gormigrate dbname=gormigrate port=5432 sslmode=disable
-      MYSQL_DSN: gormigrate:gormigrate@tcp(mysql:3306)/gormigrate?charset=utf8
-      SQLSERVER_DSN: sqlserver://sa:LoremIpsum86@sqlserver:1433?database=master&encrypt=disable
-
   postgres:
     image: postgres:14-alpine
+    ports:
+      - 5432:5432
     environment:
       POSTGRES_DB: gormigrate
       POSTGRES_USER: gormigrate
       POSTGRES_PASSWORD: gormigrate
 
+  postgres-wait:
+    image: eficode/wait-for
+    command: postgres:5432
+
   mysql:
     image: mariadb:10
+    ports:
+      - 3306:3306
     environment:
       MYSQL_DATABASE: gormigrate
       MYSQL_ROOT_PASSWORD: gormigrate
       MYSQL_USER: gormigrate
       MYSQL_PASSWORD: gormigrate
 
+  mysql-wait:
+    image: eficode/wait-for
+    command: mysql:3306
+
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - 1433:1433
     environment:
       ACCEPT_EULA: Y
       MSSQL_SA_PASSWORD: LoremIpsum86
+
+  sqlserver-wait:
+    image: eficode/wait-for
+    command: sqlserver:1433
