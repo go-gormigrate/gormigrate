@@ -142,7 +142,19 @@ func (g *Gormigrate) Migrate() error {
 	if len(g.migrations) > 0 {
 		targetMigrationID = g.migrations[len(g.migrations)-1].ID
 	}
-	return g.migrate(targetMigrationID)
+	return g.migrate(targetMigrationID, false)
+}
+
+// FakeMigrate flags all migrations that did not run yet as migrated.
+func (g *Gormigrate) FakeMigrate() error {
+	if !g.hasMigrations() {
+		return ErrNoMigrationDefined
+	}
+	var targetMigrationID string
+	if len(g.migrations) > 0 {
+		targetMigrationID = g.migrations[len(g.migrations)-1].ID
+	}
+	return g.migrate(targetMigrationID, true)
 }
 
 // MigrateTo executes all migrations that did not run yet up to the migration that matches `migrationID`.
@@ -150,10 +162,18 @@ func (g *Gormigrate) MigrateTo(migrationID string) error {
 	if err := g.checkIDExist(migrationID); err != nil {
 		return err
 	}
-	return g.migrate(migrationID)
+	return g.migrate(migrationID, false)
 }
 
-func (g *Gormigrate) migrate(migrationID string) error {
+// FakeMigrateTo flags all migrations that did not run yet up to the migration that matches `migrationID` as migrated.
+func (g *Gormigrate) FakeMigrateTo(migrationID string) error {
+	if err := g.checkIDExist(migrationID); err != nil {
+		return err
+	}
+	return g.migrate(migrationID, true)
+}
+
+func (g *Gormigrate) migrate(migrationID string, fake bool) error {
 	if !g.hasMigrations() {
 		return ErrNoMigrationDefined
 	}
@@ -189,7 +209,7 @@ func (g *Gormigrate) migrate(migrationID string) error {
 			return err
 		}
 		if canInitializeSchema {
-			if err := g.runInitSchema(); err != nil {
+			if err := g.runInitSchema(fake); err != nil {
 				return err
 			}
 			return g.commit()
@@ -197,7 +217,7 @@ func (g *Gormigrate) migrate(migrationID string) error {
 	}
 
 	for _, migration := range g.migrations {
-		if err := g.runMigration(migration); err != nil {
+		if err := g.runMigration(migration, fake); err != nil {
 			return err
 		}
 		if migrationID != "" && migration.ID == migrationID {
@@ -258,7 +278,27 @@ func (g *Gormigrate) RollbackLast() error {
 		return err
 	}
 
-	if err := g.rollbackMigration(lastRunMigration); err != nil {
+	if err := g.rollbackMigration(lastRunMigration, false); err != nil {
+		return err
+	}
+	return g.commit()
+}
+
+// FakeRollbackLast deletes migration record of the last migration
+func (g *Gormigrate) FakeRollbackLast() error {
+	if len(g.migrations) == 0 {
+		return ErrNoMigrationDefined
+	}
+
+	g.begin()
+	defer g.rollback()
+
+	lastRunMigration, err := g.getLastRunMigration()
+	if err != nil {
+		return err
+	}
+
+	if err := g.rollbackMigration(lastRunMigration, true); err != nil {
 		return err
 	}
 	return g.commit()
@@ -288,7 +328,39 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 			return err
 		}
 		if migrationRan {
-			if err := g.rollbackMigration(migration); err != nil {
+			if err := g.rollbackMigration(migration, false); err != nil {
+				return err
+			}
+		}
+	}
+	return g.commit()
+}
+
+// FakeRollbackTo deletes migration records up to the given migration that matches the `migrationID`.
+// Migration with the matching `migrationID` is not rolled back.
+func (g *Gormigrate) FakeRollbackTo(migrationID string) error {
+	if len(g.migrations) == 0 {
+		return ErrNoMigrationDefined
+	}
+
+	if err := g.checkIDExist(migrationID); err != nil {
+		return err
+	}
+
+	g.begin()
+	defer g.rollback()
+
+	for i := len(g.migrations) - 1; i >= 0; i-- {
+		migration := g.migrations[i]
+		if migration.ID == migrationID {
+			break
+		}
+		migrationRan, err := g.migrationRan(migration)
+		if err != nil {
+			return err
+		}
+		if migrationRan {
+			if err := g.rollbackMigration(migration, true); err != nil {
 				return err
 			}
 		}
@@ -317,28 +389,43 @@ func (g *Gormigrate) RollbackMigration(m *Migration) error {
 	g.begin()
 	defer g.rollback()
 
-	if err := g.rollbackMigration(m); err != nil {
+	if err := g.rollbackMigration(m, false); err != nil {
 		return err
 	}
 	return g.commit()
 }
 
-func (g *Gormigrate) rollbackMigration(m *Migration) error {
+// FakeRollbackMigration deletes migration record of a migration.
+func (g *Gormigrate) FakeRollbackMigration(m *Migration) error {
+	g.begin()
+	defer g.rollback()
+
+	if err := g.rollbackMigration(m, true); err != nil {
+		return err
+	}
+	return g.commit()
+}
+
+func (g *Gormigrate) rollbackMigration(m *Migration, fake bool) error {
 	if m.Rollback == nil {
 		return ErrRollbackImpossible
 	}
 
-	if err := m.Rollback(g.tx); err != nil {
-		return err
+	if !fake {
+		if err := m.Rollback(g.tx); err != nil {
+			return err
+		}
 	}
 
 	cond := fmt.Sprintf("%s = ?", g.options.IDColumnName)
 	return g.tx.Table(g.options.TableName).Where(cond, m.ID).Delete(g.model()).Error
 }
 
-func (g *Gormigrate) runInitSchema() error {
-	if err := g.initSchema(g.tx); err != nil {
-		return err
+func (g *Gormigrate) runInitSchema(fake bool) error {
+	if !fake {
+		if err := g.initSchema(g.tx); err != nil {
+			return err
+		}
 	}
 	if err := g.insertMigration(initSchemaMigrationID); err != nil {
 		return err
@@ -353,7 +440,7 @@ func (g *Gormigrate) runInitSchema() error {
 	return nil
 }
 
-func (g *Gormigrate) runMigration(migration *Migration) error {
+func (g *Gormigrate) runMigration(migration *Migration, fake bool) error {
 	if len(migration.ID) == 0 {
 		return ErrMissingID
 	}
@@ -363,8 +450,10 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 		return err
 	}
 	if !migrationRan {
-		if err := migration.Migrate(g.tx); err != nil {
-			return err
+		if !fake {
+			if err := migration.Migrate(g.tx); err != nil {
+				return err
+			}
 		}
 
 		if err := g.insertMigration(migration.ID); err != nil {
