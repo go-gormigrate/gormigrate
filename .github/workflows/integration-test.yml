@@ -1,0 +1,41 @@
+name: Integration Test
+
+on:
+  pull_request:
+  push:
+    tags:
+      - v*
+    branches:
+      - master
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        go: ['1.20', '1.19', '1.18']
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: latest
+          working-directory: integration-test
+
+      - name: Install Task
+        uses: arduino/setup-task@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Prepare env
+        run: cp integration-test/.example.env integration-test/.env
+
+      - name: Test
+        run: task docker:test

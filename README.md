@@ -3,11 +3,11 @@
 [![Latest Release](https://img.shields.io/github/release/go-gormigrate/gormigrate.svg)](https://github.com/go-gormigrate/gormigrate/releases)
 [![Go Reference](https://pkg.go.dev/badge/github.com/go-gormigrate/gormigrate/v2.svg)](https://pkg.go.dev/github.com/go-gormigrate/gormigrate/v2)
 [![Go Report Card](https://goreportcard.com/badge/github.com/go-gormigrate/gormigrate/v2)](https://goreportcard.com/report/github.com/go-gormigrate/gormigrate/v2)
-[![CI | Test](https://github.com/go-gormigrate/gormigrate/actions/workflows/test.yml/badge.svg)](https://github.com/go-gormigrate/gormigrate/actions)
 [![CI | Lint](https://github.com/go-gormigrate/gormigrate/actions/workflows/lint.yml/badge.svg)](https://github.com/go-gormigrate/gormigrate/actions)
+[![CI | Test](https://github.com/go-gormigrate/gormigrate/actions/workflows/integration-test.yml/badge.svg)](https://github.com/go-gormigrate/gormigrate/actions)
 
-Gormigrate is a minimalistic migration helper for [Gorm][gorm].
-Gorm already has useful [migrate functions][gormmigrate], just misses
+Gormigrate is a minimalistic migration helper for [Gorm](http://gorm.io).
+Gorm already has useful [migrate functions](https://gorm.io/docs/migration.html), just misses
 proper schema versioning and migration rollback support.
 
 > IMPORTANT: If you need support to Gorm v1 (which uses
@@ -20,7 +20,7 @@ proper schema versioning and migration rollback support.
 
 ## Supported databases
 
-It supports any of the [databases Gorm supports][gormdatabases]:
+It supports any of the [databases Gorm supports](https://gorm.io/docs/connecting_to_the_database.html):
 
 - MySQL
 - PostgreSQL
@@ -118,7 +118,7 @@ func main() {
 }
 ```
 
-## Having a separated function for initializing the schema
+## Having a separate function for initializing the schema
 
 If you have a lot of migrations, it can be a pain to run all them, as example,
 when you are deploying a new instance of the app, in a clean database.
@@ -186,7 +186,7 @@ type Options struct {
 ## Who is Gormigrate for?
 
 Gormigrate was born to be a simple and minimalistic migration tool for small
-projects that uses [Gorm][gorm]. You may want to take a look at more advanced
+projects that uses [Gorm](http://gorm.io). You may want to take a look at more advanced
 solutions like [golang-migrate/migrate](https://github.com/golang-migrate/migrate)
 if you plan to scale.
 
@@ -198,35 +198,31 @@ prevent race conditions while running migrations.
 
 ## Contributing
 
-To run tests, first copy `.sample.env` as `.env` and edit the connection
-string of the database you want to run tests against. Then, run tests like
-below:
+To run integration tests, some preparations are needed. Please ensure you
+have [task](https://taskfile.dev/installation) and [docker](https://docs.docker.com/engine/install) installed.
+Then:
+
+1. Ensure target or all databases are available and ready to accept connections.
+   You can start databases locally with `task docker:compose:up`
+2. Copy `integration-test/.example.env` as `integration-test/.env` and
+   adjust the database connection ports and credentials when needed.
+3. Run integration test for single database or for all
 
 ```bash
-# running test for MySQL
-go test -tags mysql
+# run test for MySQL
+task test:mysql
 
-# running tests for PostgreSQL
-go test -tags postgres
+# run test for PostgreSQL
+task test:postgres
 
-# running tests for SQLite
-go test -tags sqlite
+# run test for SQLite
+task test:sqlite
 
-# running tests for Microsoft SQL Server
-go test -tags sqlserver
+# run test for Microsoft SQL Server
+task test:sqlserver
 
-# running test for multiple databases at once
-go test -tags 'mysql postgres sqlite sqlserver'
+# run test for all databases
+task test:all
 ```
 
-Or alternatively, you could use Docker to easily run tests on all databases
-at once. To do that, make sure Docker is installed and running in your machine
-and then run:
-
-```bash
-task docker:test
-```
-
-[gorm]: http://gorm.io/
-[gormmigrate]: https://gorm.io/docs/migration.html
-[gormdatabases]: https://gorm.io/docs/connecting_to_the_database.html
+Alternatively, you can run everything in one step: `task docker:test`
