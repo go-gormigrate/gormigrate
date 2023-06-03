@@ -9,8 +9,9 @@ import (
 )
 
 func init() {
-	databases = append(databases, database{
-		dialect: "sqlserver",
-		driver:  sqlserver.Open(os.Getenv("SQLSERVER_DSN")),
+	dialects = append(dialects, dialect{
+		name:              "sqlserver",
+		driver:            sqlserver.Open(os.Getenv("SQLSERVER_DSN")),
+		supportsAtomicDDL: true,
 	})
 }

@@ -9,8 +9,9 @@ import (
 )
 
 func init() {
-	databases = append(databases, database{
-		dialect: "sqlite",
-		driver:  sqlite.Open(os.Getenv("SQLITE_DSN")),
+	dialects = append(dialects, dialect{
+		name:              "sqlite",
+		driver:            sqlite.Open(os.Getenv("SQLITE_DSN")),
+		supportsAtomicDDL: true,
 	})
 }
