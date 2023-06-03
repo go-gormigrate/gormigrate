@@ -12,11 +12,40 @@ import (
 	"github.com/go-gormigrate/gormigrate/v2"
 )
 
-var databases []database
+var dialects dialectList
 
-type database struct {
-	dialect string
-	driver  gorm.Dialector
+type dialect struct {
+	name   string
+	driver gorm.Dialector
+	// Not all databases support transactional DDL statements
+	supportsAtomicDDL bool
+}
+
+type dialectList []dialect
+
+func (dl dialectList) WithTransactionSupport() dialectList {
+	filtered := dialectList{}
+	for _, d := range dl {
+		if d.supportsAtomicDDL {
+			filtered = append(filtered, d)
+		}
+	}
+	return filtered
+}
+
+func (dl dialectList) forEachDB(t *testing.T, fn func(gormdb *gorm.DB)) {
+	for _, dia := range dl {
+		// Ensure defers are not stacked up for each DB
+		func(dia dialect) {
+			db, err := gorm.Open(dia.driver, &gorm.Config{})
+			require.NoError(t, err, "Could not connect to database %s, %v", dia.name, err)
+
+			// ensure database is clean before running test
+			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets"))
+
+			fn(db)
+		}(dia)
+	}
 }
 
 var migrations = []*gormigrate.Migration{
@@ -83,7 +112,7 @@ type Book struct {
 }
 
 func TestMigration(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, gormigrate.DefaultOptions, migrations)
 
 		err := m.Migrate()
@@ -107,7 +136,7 @@ func TestMigration(t *testing.T) {
 }
 
 func TestMigrateTo(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, gormigrate.DefaultOptions, extendedMigrations)
 
 		err := m.MigrateTo("201608301430")
@@ -120,7 +149,7 @@ func TestMigrateTo(t *testing.T) {
 }
 
 func TestRollbackTo(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, gormigrate.DefaultOptions, extendedMigrations)
 
 		// First, apply all migrations.
@@ -144,7 +173,7 @@ func TestRollbackTo(t *testing.T) {
 // If initSchema is defined, but no migrations are provided,
 // then initSchema is executed.
 func TestInitSchemaNoMigrations(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{})
 		m.InitSchema(func(tx *gorm.DB) error {
 			if err := tx.AutoMigrate(&Person{}); err != nil {
@@ -167,7 +196,7 @@ func TestInitSchemaNoMigrations(t *testing.T) {
 // then initSchema is executed and the migration IDs are stored,
 // even though the relevant migrations are not applied.
 func TestInitSchemaWithMigrations(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, gormigrate.DefaultOptions, migrations)
 		m.InitSchema(func(tx *gorm.DB) error {
 			if err := tx.AutoMigrate(&Person{}); err != nil {
@@ -190,7 +219,7 @@ func TestInitSchemaAlreadyInitialised(t *testing.T) {
 		gorm.Model
 	}
 
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{})
 
 		// Migrate with empty initialisation
@@ -222,7 +251,7 @@ func TestInitSchemaExistingMigrations(t *testing.T) {
 		gorm.Model
 	}
 
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, gormigrate.DefaultOptions, migrations)
 
 		// Migrate without initialisation
@@ -244,7 +273,7 @@ func TestInitSchemaExistingMigrations(t *testing.T) {
 }
 
 func TestMigrationIDDoesNotExist(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, gormigrate.DefaultOptions, migrations)
 		assert.Equal(t, gormigrate.ErrMigrationIDDoesNotExist, m.MigrateTo("1234"))
 		assert.Equal(t, gormigrate.ErrMigrationIDDoesNotExist, m.RollbackTo("1234"))
@@ -254,7 +283,7 @@ func TestMigrationIDDoesNotExist(t *testing.T) {
 }
 
 func TestMissingID(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		migrationsMissingID := []*gormigrate.Migration{
 			{
 				Migrate: func(tx *gorm.DB) error {
@@ -269,7 +298,7 @@ func TestMissingID(t *testing.T) {
 }
 
 func TestReservedID(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		migrationsReservedID := []*gormigrate.Migration{
 			{
 				ID: "SCHEMA_INIT",
@@ -286,7 +315,7 @@ func TestReservedID(t *testing.T) {
 }
 
 func TestDuplicatedID(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		migrationsDuplicatedID := []*gormigrate.Migration{
 			{
 				ID: "201705061500",
@@ -309,7 +338,7 @@ func TestDuplicatedID(t *testing.T) {
 }
 
 func TestEmptyMigrationList(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		t.Run("with empty list", func(t *testing.T) {
 			m := gormigrate.New(db, gormigrate.DefaultOptions, []*gormigrate.Migration{})
 			err := m.Migrate()
@@ -328,7 +357,7 @@ func TestMigration_WithUseTransactions(t *testing.T) {
 	options := gormigrate.DefaultOptions
 	options.UseTransaction = true
 
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.WithTransactionSupport().forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, options, migrations)
 
 		err := m.Migrate()
@@ -348,14 +377,14 @@ func TestMigration_WithUseTransactions(t *testing.T) {
 		assert.False(t, db.Migrator().HasTable(&Person{}))
 		assert.False(t, db.Migrator().HasTable(&Pet{}))
 		assert.Equal(t, int64(0), tableCount(t, db, "migrations"))
-	}, "postgres", "sqlite", "sqlitego", "sqlserver")
+	})
 }
 
 func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 	options := gormigrate.DefaultOptions
 	options.UseTransaction = true
 
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.WithTransactionSupport().forEachDB(t, func(db *gorm.DB) {
 		assert.True(t, true)
 		m := gormigrate.New(db, options, failingMigration)
 
@@ -363,11 +392,11 @@ func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 		err := m.Migrate()
 		assert.Error(t, err)
 		assert.False(t, db.Migrator().HasTable(&Book{}))
-	}, "postgres", "sqlite", "sqlitego", "sqlserver")
+	})
 }
 
 func TestUnexpectedMigrationEnabled(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		options := gormigrate.DefaultOptions
 		options.ValidateUnknownMigrations = true
 		m := gormigrate.New(db, options, migrations)
@@ -383,7 +412,7 @@ func TestUnexpectedMigrationEnabled(t *testing.T) {
 }
 
 func TestUnexpectedMigrationDisabled(t *testing.T) {
-	forEachDatabase(t, func(db *gorm.DB) {
+	dialects.forEachDB(t, func(db *gorm.DB) {
 		options := gormigrate.DefaultOptions
 		options.ValidateUnknownMigrations = false
 		m := gormigrate.New(db, options, migrations)
@@ -401,36 +430,4 @@ func TestUnexpectedMigrationDisabled(t *testing.T) {
 func tableCount(t *testing.T, db *gorm.DB, tableName string) (count int64) {
 	assert.NoError(t, db.Table(tableName).Count(&count).Error)
 	return
-}
-
-func forEachDatabase(t *testing.T, fn func(database *gorm.DB), dialects ...string) {
-	if len(databases) == 0 {
-		panic("No database chosen for testing!")
-	}
-
-	for _, database := range databases {
-		if len(dialects) > 0 && !contains(dialects, database.dialect) {
-			t.Skipf("test is not supported by [%s] dialect", database.dialect)
-		}
-
-		// Ensure defers are not stacked up for each DB
-		func() {
-			db, err := gorm.Open(database.driver, &gorm.Config{})
-			require.NoError(t, err, "Could not connect to database %s, %v", database.dialect, err)
-
-			// ensure tables do not exists
-			assert.NoError(t, db.Migrator().DropTable("migrations", "people", "pets"))
-
-			fn(db)
-		}()
-	}
-}
-
-func contains(haystack []string, needle string) bool {
-	for _, straw := range haystack {
-		if straw == needle {
-			return true
-		}
-	}
-	return false
 }

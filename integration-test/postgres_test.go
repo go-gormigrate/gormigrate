@@ -9,8 +9,9 @@ import (
 )
 
 func init() {
-	databases = append(databases, database{
-		dialect: "postgres",
-		driver:  postgres.Open(os.Getenv("POSTGRES_DSN")),
+	dialects = append(dialects, dialect{
+		name:              "postgres",
+		driver:            postgres.Open(os.Getenv("POSTGRES_DSN")),
+		supportsAtomicDDL: true,
 	})
 }

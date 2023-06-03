@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/glebarez/sqlite v1.8.0
-	github.com/go-gormigrate/gormigrate/v2 v2.0.0-00010101000000-000000000000
+	github.com/go-gormigrate/gormigrate/v2 v2.1.0
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.8.4
 	gorm.io/driver/mysql v1.5.1
