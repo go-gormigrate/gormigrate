@@ -432,8 +432,7 @@ func (g *Gormigrate) canInitializeSchema() (bool, error) {
 }
 
 func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
-	sql := fmt.Sprintf("SELECT %s FROM %s", g.options.IDColumnName, g.options.TableName)
-	rows, err := g.tx.Raw(sql).Rows()
+	rows, err := g.tx.Table(g.options.TableName).Select(g.options.IDColumnName).Rows()
 	if err != nil {
 		return false, err
 	}
