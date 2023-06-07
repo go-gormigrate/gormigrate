@@ -6,11 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
-
+### Added
+- Add to test suite pure-go sqlite implementation: github.com/glebarez/sqlite
+### Changed
+- Update databases for ci pipelines and local development
+- Extract integration tests and their deps into different integration-test package
+- Refactor raw sql query into native Gorm method chain, for better compatibility with all dialects
 
 ## [2.1.0] - 2023-06-01
 ### Changed
-- Refactor plain sql mutation statements (create, insert, delete) into native gorm methods
+- Refactor plain sql mutation statements (create, insert, delete) into native Gorm methods
 - Update dependencies
 
 ## [2.0.3] - 2023-05-29
