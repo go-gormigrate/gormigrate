@@ -1,6 +1,8 @@
 module integration-test
 
-go 1.20
+go 1.22
+
+toolchain go1.22.1
 
 require (
 	github.com/glebarez/sqlite v1.11.0
