@@ -10,6 +10,9 @@ on:
 
 jobs:
   lint:
+    strategy:
+      matrix:
+        go: ['1.22', '1.21', '1.20', '1.19', '1.18']
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -18,9 +21,10 @@ jobs:
       - name: Install Go
         uses: actions/setup-go@v5
         with:
-          go-version-file: go.mod
+          go-version: ${{ matrix.go }}
 
       - name: Lint
         uses: golangci/golangci-lint-action@v4
         with:
           version: latest
+          args: --skip-dirs=integration-test
