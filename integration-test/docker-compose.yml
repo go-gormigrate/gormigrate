@@ -2,7 +2,7 @@ version: '3'
 
 services:
   postgres:
-    image: postgres:14-alpine
+    image: postgres:16-alpine
     ports:
       - 5432:5432
     environment:
@@ -16,7 +16,7 @@ services:
       retries: 10
 
   mysql:
-    image: mariadb:10
+    image: mysql:8
     ports:
       - 3306:3306
     environment:
@@ -26,6 +26,21 @@ services:
       MYSQL_PASSWORD: gormigrate
     healthcheck:
       test: mysqladmin ping --user="$${MYSQL_USER}" --password="$${MYSQL_PASSWORD}"
+      interval: 2s
+      timeout: 3s
+      retries: 10
+
+  mariadb:
+    image: mariadb:11
+    ports:
+      - 3307:3306
+    environment:
+      MARIADB_DATABASE: gormigrate
+      MARIADB_ROOT_PASSWORD: gormigrate
+      MARIADB_USER: gormigrate
+      MARIADB_PASSWORD: gormigrate
+    healthcheck:
+      test: healthcheck.sh --su-mysql --connect --innodb_initialized
       interval: 2s
       timeout: 3s
       retries: 10

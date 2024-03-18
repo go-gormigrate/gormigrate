@@ -458,7 +458,8 @@ func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
 }
 
 func (g *Gormigrate) insertMigration(id string) error {
-	record := map[string]interface{}{g.options.IDColumnName: id}
+	record := g.model()
+	reflect.ValueOf(record).Elem().FieldByName("ID").SetString(id)
 	return g.tx.Table(g.options.TableName).Create(record).Error
 }
 

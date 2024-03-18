@@ -20,6 +20,12 @@ tasks:
       - task: test
         vars: {DATABASE: mysql}
 
+  test:mariadb:
+    desc: Run tests for MariaDB
+    cmds:
+      - task: test
+        vars: {DATABASE: mariadb}
+
   test:postgres:
     desc: Run tests for PostgreSQL
     cmds:
@@ -46,7 +52,7 @@ tasks:
 
   test:all:
     desc: Run tests for all databases
-    deps: [test:mysql, test:postgres, test:sqlite, test:sqlitego, test:sqlserver]
+    deps: [test:mysql, test:mariadb, test:postgres, test:sqlite, test:sqlitego, test:sqlserver]
 
 # Docker tasks
 

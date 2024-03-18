@@ -10,29 +10,26 @@ on:
 
 jobs:
   test:
-    strategy:
-      matrix:
-        go: ['1.21', '1.20', '1.19', '1.18']
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v4
         with:
           version: latest
           working-directory: integration-test
 
       - name: Install Task
-        uses: arduino/setup-task@v1
+        uses: arduino/setup-task@v2
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
-          go-version: ${{ matrix.go }}
+          go-version-file: integration-test/go.mod
 
       - name: Prepare env
         run: cp integration-test/.example.env integration-test/.env
