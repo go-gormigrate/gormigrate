@@ -9,11 +9,11 @@ require (
 	github.com/go-gormigrate/gormigrate/v2 v2.1.1
 	github.com/joho/godotenv v1.5.1
 	github.com/stretchr/testify v1.9.0
-	gorm.io/driver/mysql v1.5.4
+	gorm.io/driver/mysql v1.5.5
 	gorm.io/driver/postgres v1.5.7
 	gorm.io/driver/sqlite v1.5.5
 	gorm.io/driver/sqlserver v1.5.3
-	gorm.io/gorm v1.25.7
+	gorm.io/gorm v1.25.8
 )
 
 require (
