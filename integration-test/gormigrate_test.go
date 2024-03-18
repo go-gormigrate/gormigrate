@@ -12,8 +12,6 @@ import (
 	"github.com/go-gormigrate/gormigrate/v2"
 )
 
-var dialects dialectList
-
 type dialect struct {
 	name   string
 	driver gorm.Dialector
@@ -23,7 +21,7 @@ type dialect struct {
 
 type dialectList []dialect
 
-func (dl dialectList) WithTransactionSupport() dialectList {
+func (dl dialectList) withTransactionSupport() dialectList {
 	filtered := dialectList{}
 	for _, d := range dl {
 		if d.supportsAtomicDDL {
@@ -47,6 +45,8 @@ func (dl dialectList) forEachDB(t *testing.T, fn func(gormdb *gorm.DB)) {
 		}(dia)
 	}
 }
+
+var dialects dialectList
 
 var migrations = []*gormigrate.Migration{
 	{
@@ -357,7 +357,7 @@ func TestMigration_WithUseTransactions(t *testing.T) {
 	options := gormigrate.DefaultOptions
 	options.UseTransaction = true
 
-	dialects.WithTransactionSupport().forEachDB(t, func(db *gorm.DB) {
+	dialects.withTransactionSupport().forEachDB(t, func(db *gorm.DB) {
 		m := gormigrate.New(db, options, migrations)
 
 		err := m.Migrate()
@@ -384,7 +384,7 @@ func TestMigration_WithUseTransactionsShouldRollback(t *testing.T) {
 	options := gormigrate.DefaultOptions
 	options.UseTransaction = true
 
-	dialects.WithTransactionSupport().forEachDB(t, func(db *gorm.DB) {
+	dialects.withTransactionSupport().forEachDB(t, func(db *gorm.DB) {
 		assert.True(t, true)
 		m := gormigrate.New(db, options, failingMigration)
 
