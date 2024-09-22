@@ -1,5 +1,3 @@
-version: '3'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -46,7 +44,8 @@ services:
       retries: 10
 
   sqlserver:
-    image: mcr.microsoft.com/mssql/server:2022-latest
+    # see https://hub.docker.com/r/microsoft/mssql-server
+    image: mcr.microsoft.com/mssql/server:2022-CU13-ubuntu-22.04
     ports:
       - 1433:1433
     environment:
