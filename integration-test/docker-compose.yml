@@ -1,6 +1,7 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    # see https://www.postgresql.org/docs/release/
+    image: postgres:17-alpine
     ports:
       - 5432:5432
     environment:
@@ -14,7 +15,8 @@ services:
       retries: 10
 
   mysql:
-    image: mysql:8
+    # see https://dev.mysql.com/doc/refman/9.2/en/mysql-releases.html
+    image: mysql:9
     ports:
       - 3306:3306
     environment:
@@ -29,6 +31,7 @@ services:
       retries: 10
 
   mariadb:
+    # see https://mariadb.com/kb/en/mariadb-server-release-dates/
     image: mariadb:11
     ports:
       - 3307:3306
@@ -45,14 +48,14 @@ services:
 
   sqlserver:
     # see https://hub.docker.com/r/microsoft/mssql-server
-    image: mcr.microsoft.com/mssql/server:2022-CU13-ubuntu-22.04
+    image: mcr.microsoft.com/mssql/server:2022-CU17-ubuntu-22.04
     ports:
       - 1433:1433
     environment:
       ACCEPT_EULA: Y
       MSSQL_SA_PASSWORD: LoremIpsum86
     healthcheck:
-      test: /opt/mssql-tools/bin/sqlcmd -S localhost -U sa -P "$${MSSQL_SA_PASSWORD}" -Q "SELECT 1" -b -o /dev/null
+      test: /opt/mssql-tools18/bin/sqlcmd -S localhost -C -U sa -P "$${MSSQL_SA_PASSWORD}" -Q "SELECT 1" -b -o /dev/null
       interval: 5s
       timeout: 3s
       retries: 20
