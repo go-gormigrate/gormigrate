@@ -112,7 +112,7 @@ func main() {
 		},
 	}})
 
-	if err = m.Migrate(); err != nil {
+	if err := m.Migrate(); err != nil {
 		log.Fatalf("Migration failed: %v", err)
 	}
 	log.Println("Migration did run successfully")
