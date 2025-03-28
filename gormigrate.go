@@ -332,7 +332,7 @@ func (g *Gormigrate) rollbackMigration(m *Migration) error {
 	}
 
 	if err := m.Rollback(g.tx); err != nil {
-		return err
+		return fmt.Errorf(`gormigrate: Migration "%s" failed: %w`, m.ID, err)
 	}
 
 	cond := fmt.Sprintf("%s = ?", g.options.IDColumnName)
@@ -367,7 +367,7 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 	}
 	if !migrationRan {
 		if err := migration.Migrate(g.tx); err != nil {
-			return err
+			return fmt.Errorf(`gormigrate: Migration "%s" failed: %w`, m.ID, err)
 		}
 
 		if err := g.insertMigration(migration.ID); err != nil {
