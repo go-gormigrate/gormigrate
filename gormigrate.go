@@ -109,6 +109,9 @@ var (
 
 // New returns a new Gormigrate.
 func New(db *gorm.DB, options *Options, migrations []*Migration) *Gormigrate {
+	if options == nil {
+		options = DefaultOptions
+	}
 	if options.TableName == "" {
 		options.TableName = DefaultOptions.TableName
 	}
