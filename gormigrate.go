@@ -256,6 +256,10 @@ func (g *Gormigrate) RollbackLast() error {
 	g.begin()
 	defer g.rollback()
 
+	if err := g.createMigrationTableIfNotExists(); err != nil {
+		return err
+	}
+
 	lastRunMigration, err := g.getLastRunMigration()
 	if err != nil {
 		return err
@@ -265,6 +269,33 @@ func (g *Gormigrate) RollbackLast() error {
 		return err
 	}
 	return g.commit()
+}
+
+// RollbackAll try to rollback all given migration steps
+func (g *Gormigrate) RollbackAll() error {
+	if len(g.migrations) == 0 {
+		return ErrNoMigrationDefined
+	}
+
+	g.begin()
+	defer g.rollback()
+
+	if err := g.createMigrationTableIfNotExists(); err != nil {
+		return err
+	}
+	for {
+		lastRunMigration, err := g.getLastRunMigration()
+		if err != nil {
+			if err == ErrNoRunMigration {
+				return g.commit()
+			}
+			return err
+		}
+
+		if err := g.rollbackMigration(lastRunMigration); err != nil {
+			return err
+		}
+	}
 }
 
 // RollbackTo undoes migrations up to the given migration that matches the `migrationID`.
@@ -280,6 +311,10 @@ func (g *Gormigrate) RollbackTo(migrationID string) error {
 
 	g.begin()
 	defer g.rollback()
+
+	if err := g.createMigrationTableIfNotExists(); err != nil {
+		return err
+	}
 
 	for i := len(g.migrations) - 1; i >= 0; i-- {
 		migration := g.migrations[i]
@@ -319,6 +354,10 @@ func (g *Gormigrate) getLastRunMigration() (*Migration, error) {
 func (g *Gormigrate) RollbackMigration(m *Migration) error {
 	g.begin()
 	defer g.rollback()
+
+	if err := g.createMigrationTableIfNotExists(); err != nil {
+		return err
+	}
 
 	if err := g.rollbackMigration(m); err != nil {
 		return err
