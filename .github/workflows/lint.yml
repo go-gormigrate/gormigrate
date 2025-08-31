@@ -24,7 +24,7 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Lint
-        uses: golangci/golangci-lint-action@v4
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: --skip-dirs=integration-test
