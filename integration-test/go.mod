@@ -1,8 +1,8 @@
 module integration-test
 
-go 1.24
+go 1.25
 
-toolchain go1.24.1
+toolchain go1.25.1
 
 require (
 	github.com/glebarez/sqlite v1.11.0
@@ -13,7 +13,7 @@ require (
 	gorm.io/driver/postgres v1.5.11
 	gorm.io/driver/sqlite v1.5.7
 	gorm.io/driver/sqlserver v1.5.4
-	gorm.io/gorm v1.25.12
+	gorm.io/gorm v1.26.1
 )
 
 require (
