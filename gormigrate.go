@@ -2,6 +2,7 @@
 package gormigrate
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
@@ -382,7 +383,7 @@ func (g *Gormigrate) runMigration(migration *Migration) error {
 //	struct defined as {
 //	  ID string `gorm:"primaryKey;column:<Options.IDColumnName>;size:<Options.IDColumnSize>"`
 //	}
-func (g *Gormigrate) model() interface{} {
+func (g *Gormigrate) model() any {
 	f := reflect.StructField{
 		Name: reflect.ValueOf("ID").Interface().(string),
 		Type: reflect.TypeOf(""),
@@ -439,7 +440,11 @@ func (g *Gormigrate) unknownMigrationsHaveHappened() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			g.tx.Logger.Error(context.TODO(), err.Error())
+		}
+	}()
 
 	validIDSet := make(map[string]struct{}, len(g.migrations)+1)
 	validIDSet[initSchemaMigrationID] = struct{}{}
