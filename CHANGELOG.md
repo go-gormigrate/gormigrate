@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.1.4] - 2025-03-28
 ### Changed
 - Update dependencies
+- Allow use of nil for options (by @ski7777 in #228)
 
 ## [2.1.3] - 2024-09-23
 ### Changed
