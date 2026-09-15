@@ -20,15 +20,19 @@ proper schema versioning and migration rollback support.
 
 ## Supported databases
 
-It supports any of the [databases Gorm supports](https://gorm.io/docs/connecting_to_the_database.html):
+Gormigrate is expected to support any of the
+[databases Gorm supports](https://gorm.io/docs/connecting_to_the_database.html).
 
-- MySQL
-- MariaDB
-- PostgreSQL
-- SQLite
-- Microsoft SQL Server
-- TiDB
-- Clickhouse
+The integration tests cover the following databases:
+
+| Database             | Version tested          |
+| -------------------- | ----------------------- |
+| PostgreSQL           | 18                      |
+| MySQL                | 9                       |
+| MariaDB              | 12                      |
+| Microsoft SQL Server | 2025                    |
+| SQLite (CGo)         | via `mattn/go-sqlite3`  |
+| SQLite (pure Go)     | via `glebarez/sqlite`   |
 
 ## Usage
 
